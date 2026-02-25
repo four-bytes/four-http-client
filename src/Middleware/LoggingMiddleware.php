@@ -9,21 +9,17 @@ use Four\Http\Transport\HttpTransportInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Middleware that adds comprehensive HTTP request and response logging
- *
- * This middleware logs all HTTP requests and responses with performance metrics,
- * error details, and marketplace-specific context for debugging and monitoring.
+ * Middleware that adds comprehensive HTTP request and response logging.
  */
 class LoggingMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly string $marketplace = 'general'
     ) {}
 
     public function wrap(HttpTransportInterface $transport): HttpTransportInterface
     {
-        return new LoggingHttpTransport($transport, $this->logger, $this->marketplace);
+        return new LoggingHttpTransport($transport, $this->logger);
     }
 
     public function getName(): string
@@ -45,7 +41,6 @@ class LoggingHttpTransport implements HttpTransportInterface
     public function __construct(
         private readonly HttpTransportInterface $transport,
         private readonly LoggerInterface $logger,
-        private readonly string $marketplace
     ) {}
 
     /**
@@ -54,7 +49,7 @@ class LoggingHttpTransport implements HttpTransportInterface
     public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         $startTime = microtime(true);
-        $requestId = uniqid("{$this->marketplace}_", true);
+        $requestId = uniqid('req_', true);
 
         // Log request start
         $this->logRequest($requestId, $method, $url, $options);
@@ -66,7 +61,6 @@ class LoggingHttpTransport implements HttpTransportInterface
             return new LoggedResponse(
                 $response,
                 $this->logger,
-                $this->marketplace,
                 $requestId,
                 $startTime
             );
@@ -75,7 +69,6 @@ class LoggingHttpTransport implements HttpTransportInterface
             $duration = (microtime(true) - $startTime) * 1000;
 
             $this->logger->error("HTTP request failed", [
-                'marketplace' => $this->marketplace,
                 'request_id' => $requestId,
                 'method' => $method,
                 'url' => $this->sanitizeUrl($url),
@@ -97,7 +90,6 @@ class LoggingHttpTransport implements HttpTransportInterface
         return new static(
             $this->transport->withOptions($options),
             $this->logger,
-            $this->marketplace
         );
     }
 
@@ -109,7 +101,6 @@ class LoggingHttpTransport implements HttpTransportInterface
     private function logRequest(string $requestId, string $method, string $url, array $options): void
     {
         $logData = [
-            'marketplace' => $this->marketplace,
             'request_id' => $requestId,
             'method' => $method,
             'url' => $this->sanitizeUrl($url),
@@ -163,7 +154,6 @@ class LoggingHttpTransport implements HttpTransportInterface
                 'sort' => true,
                 'order' => true,
                 'filter' => true,
-                'marketplaceIds' => true,
                 'version' => true,
             ]);
 
@@ -186,7 +176,6 @@ class LoggedResponse implements HttpResponseInterface
     public function __construct(
         private readonly HttpResponseInterface $response,
         private readonly LoggerInterface $logger,
-        private readonly string $marketplace,
         private readonly string $requestId,
         private readonly float $startTime
     ) {}
@@ -238,7 +227,6 @@ class LoggedResponse implements HttpResponseInterface
             $headers = $this->response->getHeaders(false);
 
             $logData = [
-                'marketplace' => $this->marketplace,
                 'request_id' => $this->requestId,
                 'status_code' => $statusCode,
                 'duration_ms' => round($duration, 2),
@@ -251,10 +239,6 @@ class LoggedResponse implements HttpResponseInterface
 
             // Add rate limit info if available
             $rateLimitHeaders = [
-                'x-amzn-ratelimit-limit',
-                'x-amzn-ratelimit-remaining',
-                'x-ebay-api-analytics-daily-remaining',
-                'x-discogs-ratelimit-remaining',
                 'x-ratelimit-remaining',
                 'x-ratelimit-limit',
                 'retry-after',
@@ -275,7 +259,6 @@ class LoggedResponse implements HttpResponseInterface
 
         } catch (\Exception $e) {
             $this->logger->error("Failed to log HTTP response", [
-                'marketplace' => $this->marketplace,
                 'request_id' => $this->requestId,
                 'duration_ms' => round($duration, 2),
                 'error' => $e->getMessage(),

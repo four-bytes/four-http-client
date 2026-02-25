@@ -18,12 +18,12 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
 /**
- * Abstrakte Basis-Klasse für Marketplace-Clients.
+ * Abstrakte Basis-Klasse für API-Clients.
  *
  * Infrastruktur-Layer: PSR-18, Auth-Injection, Error-Mapping.
- * Keine marketplace-spezifische Logik.
+ * Keine API-spezifische Logik.
  */
-abstract class MarketplaceClient
+abstract class ApiClient
 {
     public function __construct(
         protected readonly ClientConfig $config,

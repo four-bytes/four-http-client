@@ -222,7 +222,6 @@ class ClientConfigBuilder
             $this->authProvider,
             $this->rateLimiter,
             $this->logger,
-            null,
             $this->retryConfig,
             $this->timeout,
             $this->maxRedirects,

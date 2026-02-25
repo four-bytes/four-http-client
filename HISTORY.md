@@ -1,5 +1,27 @@
 # Changelog — four-http-client
 
+## [4.0.0] — 2026-02-25
+
+### Breaking Changes
+- `MarketplaceHttpClientFactory` → `HttpClientFactory` (umbenennt)
+- `MarketplaceClient` → `ApiClient` (umbenennt)
+- `$marketplace`-Parameter aus allen Exceptions entfernt (`getMarketplace()`, `forMarketplace()`)
+- `RetryConfig::forMarketplace()` entfernt
+- `$marketplace`-Parameter aus `LoggingMiddleware` + `RetryMiddleware` entfernt
+- `symfony/http-client` komplett aus Dependencies entfernt — `php-http/discovery` übernimmt
+- `symfony/cache` komplett aus Dependencies entfernt
+- `psr/cache` aus `require` entfernt (kein Cache mehr in Factory/Config)
+- `$cache`-Parameter aus `HttpClientFactory` + `ClientConfig` entfernt
+
+### Neu
+- `DiscoveryHttpTransport` — nutzt `php-http/discovery` für PSR-18 Transport (Symfony-frei)
+- `Psr7HttpResponse` — PSR-7 Response Adapter für `HttpResponseInterface`
+- `php-http/mock-client` in `require-dev` für Tests
+
+### Architektur
+- Library ist jetzt vollständig Symfony-frei (kein Symfony in require oder require-dev)
+- Marketplace-spezifische Logik ausgelagert → zukünftiges `four-marketplace-client` Repo
+
 ## [3.0.0] — 2026-02-25
 
 ### Breaking Changes

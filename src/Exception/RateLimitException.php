@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Exception;
 
 /**
- * Exception thrown when rate limits are exceeded
+ * Exception thrown when rate limits are exceeded.
  *
  * This exception is thrown when an HTTP request cannot be completed
  * due to rate limiting constraints, either from local rate limiting
@@ -17,13 +17,12 @@ class RateLimitException extends HttpClientException
         string $message = 'Rate limit exceeded',
         int $code = 429,
         ?\Throwable $previous = null,
-        ?string $marketplace = null,
         ?string $operation = null,
         private readonly ?int $retryAfter = null,
         private readonly ?int $remainingRequests = null,
         private readonly ?int $requestLimit = null
     ) {
-        parent::__construct($message, $code, $previous, $marketplace, $operation);
+        parent::__construct($message, $code, $previous, $operation);
     }
 
     /**
@@ -51,13 +50,12 @@ class RateLimitException extends HttpClientException
     }
 
     /**
-     * Create exception from API response headers
+     * Create exception from API response headers.
      *
      * @param array<string, array<string>|string> $headers
      */
     public static function fromHeaders(
         array $headers,
-        ?string $marketplace = null,
         ?string $operation = null
     ): self {
         // Normalize header names to lowercase
@@ -107,7 +105,6 @@ class RateLimitException extends HttpClientException
             $message,
             429,
             null,
-            $marketplace,
             $operation,
             $retryAfter,
             $remaining,

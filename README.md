@@ -1,12 +1,11 @@
 # Four HTTP Client
 
-A modern PSR-18 HTTP client library for PHP 8.4+ with middleware support. Built for marketplace API integrations but generic enough for any HTTP use case.
+A modern PSR-18 HTTP client library for PHP 8.4+ with middleware support. Built for API integrations with generic transport and authentication layers.
 
 ## Features
 
 - **PSR-18 Compliant** — Works with any PSR-18 compatible client
 - **Middleware Stack** — Logging, rate limiting, retry, authentication
-- **Marketplace Presets** — Optimized configs for Amazon SP-API, eBay, Discogs, Bandcamp
 - **Authentication** — Bearer tokens, API keys, OAuth 2.0, OAuth 1.0a
 - **Retry Logic** — Exponential backoff with configurable policies
 - **Error Mapping** — 401 → AuthenticationException, 404 → NotFoundException, 429 → RateLimitException
@@ -22,17 +21,16 @@ Requires PHP 8.4+ and PSR packages:
 - `psr/http-factory: ^1.0`
 - `psr/http-message: ^2.0`
 - `psr/log: ^3.0`
-- `psr/cache: ^3.0`
 
-Recommended: `symfony/http-client` as the underlying transport.
+Recommended: `php-http/discovery` for automatic transport discovery.
 
 ## Quick Start
 
 ```php
 use Four\Http\Configuration\ClientConfig;
-use Four\Http\Factory\MarketplaceHttpClientFactory;
+use Four\Http\Factory\HttpClientFactory;
 
-$factory = new MarketplaceHttpClientFactory();
+$factory = new HttpClientFactory();
 
 $config = ClientConfig::create('https://api.example.com')
     ->withAuth('bearer', 'your-token')
@@ -52,7 +50,7 @@ $data = json_decode($response->getContent(), true);
 Fluent builder for client configuration:
 
 ```php
-$config = ClientConfig::create('https://api.marketplace.com')
+$config = ClientConfig::create('https://api.example.com')
     // Authentication (simple)
     ->withAuth('bearer', 'your-token')
     // or with AuthProvider
@@ -73,14 +71,6 @@ $config = ClientConfig::create('https://api.marketplace.com')
     ->withRateLimit($rateLimiter)
     ->withRetries($retryConfig)
     
-    // Presets
-    ->forAmazon()      // Amazon SP-API defaults
-    ->forEbay()       // eBay API defaults
-    ->forDiscogs()    // Discogs API defaults
-    ->forBandcamp()   // Bandcamp API defaults
-    ->forDevelopment() // Lenient settings
-    ->forProduction()  // Strict settings
-    
     ->build();
 ```
 
@@ -97,9 +87,6 @@ $config = RetryConfig::conservative();
 
 // Aggressive for robust APIs
 $config = RetryConfig::aggressive();
-
-// Marketplace-specific
-$config = RetryConfig::forMarketplace('amazon');
 
 // Custom
 $config = new RetryConfig(
@@ -329,11 +316,10 @@ try {
 - **psr/http-factory: ^1.0**
 - **psr/http-message: ^2.0**
 - **psr/log: ^3.0**
-- **psr/cache: ^3.0**
 - **php-http/discovery: ^1.19**
 
 Optional:
-- **symfony/http-client** — Recommended transport (auto-detected)
+- **symfony/http-client** — Alternative transport
 - **guzzlehttp/guzzle** — Alternative transport
 
 ## License

@@ -85,44 +85,6 @@ readonly class RetryConfig
     }
 
     /**
-     * Create retry configuration for specific marketplace
-     */
-    public static function forMarketplace(string $marketplace): self
-    {
-        return match ($marketplace) {
-            'amazon' => new self(
-                maxAttempts: 3,
-                initialDelay: 1.0,
-                multiplier: 2.0,
-                maxDelay: 30.0,
-                retryableStatusCodes: [429, 500, 502, 503, 504]
-            ),
-            'ebay' => new self(
-                maxAttempts: 3,
-                initialDelay: 1.5,
-                multiplier: 2.0,
-                maxDelay: 45.0,
-                retryableStatusCodes: [429, 500, 502, 503, 504]
-            ),
-            'discogs' => new self(
-                maxAttempts: 2,
-                initialDelay: 2.0,
-                multiplier: 2.5,
-                maxDelay: 60.0,
-                retryableStatusCodes: [429, 500, 502, 503, 504]
-            ),
-            'bandcamp' => new self(
-                maxAttempts: 1,
-                initialDelay: 3.0,
-                multiplier: 2.0,
-                maxDelay: 10.0,
-                retryableStatusCodes: [429, 500, 502, 503, 504]
-            ),
-            default => self::default()
-        };
-    }
-
-    /**
      * Calculate delay for specific attempt number
      */
     public function calculateDelay(int $attempt): float

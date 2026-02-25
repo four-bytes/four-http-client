@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Four\Http\Configuration;
 
 use Four\Http\Authentication\AuthProviderInterface;
-use Four\Http\Configuration\RetryConfig;
 use Four\RateLimit\RateLimiterInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Configuration class for HTTP client creation
+ * Configuration class for HTTP client creation.
  *
- * This class holds all configuration options for creating marketplace HTTP clients,
+ * This class holds all configuration options for creating HTTP clients,
  * including base URLs, authentication, middleware options, and performance settings.
  */
 readonly class ClientConfig
@@ -25,7 +23,6 @@ readonly class ClientConfig
      * @param AuthProviderInterface|null $authProvider Authentication provider
      * @param RateLimiterInterface|null $rateLimiter Rate limiter instance
      * @param LoggerInterface|null $logger Logger instance
-     * @param CacheItemPoolInterface|null $cache Cache instance
      * @param RetryConfig|null $retryConfig Retry configuration
      * @param float $timeout Request timeout in seconds
      * @param int $maxRedirects Maximum number of redirects to follow
@@ -38,7 +35,6 @@ readonly class ClientConfig
         public ?AuthProviderInterface $authProvider = null,
         public ?RateLimiterInterface $rateLimiter = null,
         public ?LoggerInterface $logger = null,
-        public ?CacheItemPoolInterface $cache = null,
         public ?RetryConfig $retryConfig = null,
         public float $timeout = 30.0,
         public int $maxRedirects = 3,
@@ -67,7 +63,6 @@ readonly class ClientConfig
         ?AuthProviderInterface $authProvider = null,
         ?RateLimiterInterface $rateLimiter = null,
         ?LoggerInterface $logger = null,
-        ?CacheItemPoolInterface $cache = null,
         ?RetryConfig $retryConfig = null,
         ?float $timeout = null,
         ?int $maxRedirects = null,
@@ -80,7 +75,6 @@ readonly class ClientConfig
             $authProvider ?? $this->authProvider,
             $rateLimiter ?? $this->rateLimiter,
             $logger ?? $this->logger,
-            $cache ?? $this->cache,
             $retryConfig ?? $this->retryConfig,
             $timeout ?? $this->timeout,
             $maxRedirects ?? $this->maxRedirects,
@@ -114,14 +108,13 @@ readonly class ClientConfig
     }
 
     /**
-     * Convert configuration to Symfony HttpClient options
+     * Convert configuration to HTTP client options array.
      *
      * @return array<string, mixed>
      */
     public function toHttpClientOptions(): array
     {
         $options = [
-            'base_uri' => $this->baseUri,
             'headers' => $this->getMergedHeaders(),
             'timeout' => $this->timeout,
             'max_redirects' => $this->maxRedirects,

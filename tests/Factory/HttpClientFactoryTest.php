@@ -5,21 +5,41 @@ declare(strict_types=1);
 namespace Four\Http\Tests\Factory;
 
 use Four\Http\Configuration\ClientConfig;
-use Four\Http\Factory\MarketplaceHttpClientFactory;
+use Four\Http\Factory\HttpClientFactory;
 use Four\Http\Tests\TestCase;
+use Four\Http\Transport\DiscoveryHttpTransport;
+use Http\Discovery\ClassDiscovery;
+use Http\Discovery\Strategy\DiscoveryStrategy;
+use Nyholm\Psr7\Response;
 use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
- * Tests für MarketplaceHttpClientFactory (PSR-18 API)
+ * Tests für HttpClientFactory (PSR-18 API)
  */
-class MarketplaceHttpClientFactoryTest extends TestCase
+class HttpClientFactoryTest extends TestCase
 {
-    private MarketplaceHttpClientFactory $factory;
+    private HttpClientFactory $factory;
+
+    /** @var list<string> */
+    private static array $originalStrategies = [];
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->factory = new MarketplaceHttpClientFactory($this->logger, $this->cache);
+
+        // Registriere Test-PSR-18-Client als discovery-Kandidat
+        ClassDiscovery::prependStrategy(TestPsr18ClientStrategy::class);
+
+        $this->factory = new HttpClientFactory($this->logger);
+    }
+
+    protected function tearDown(): void
+    {
+        // Discovery-Cache leeren damit andere Tests nicht beeinflusst werden
+        ClassDiscovery::clearCache();
+        parent::tearDown();
     }
 
     public function testCreateReturnsPsr18Client(): void
@@ -82,7 +102,6 @@ class MarketplaceHttpClientFactoryTest extends TestCase
     {
         $middleware = $this->factory->getAvailableMiddleware();
 
-        // Keine marketplace-spezifischen Einträge mehr
         $this->assertNotContains('amazon', $middleware);
         $this->assertNotContains('ebay', $middleware);
         $this->assertNotContains('discogs', $middleware);
@@ -99,5 +118,36 @@ class MarketplaceHttpClientFactoryTest extends TestCase
         $client = $this->factory->create($config);
 
         $this->assertInstanceOf(ClientInterface::class, $client);
+    }
+}
+
+/**
+ * Test-only Discovery-Strategy für einen minimalen PSR-18 Client.
+ */
+class TestPsr18ClientStrategy implements DiscoveryStrategy
+{
+    public static function getCandidates($type): array
+    {
+        if ($type === ClientInterface::class) {
+            return [
+                [
+                    'class' => NullPsr18Client::class,
+                    'condition' => NullPsr18Client::class,
+                ],
+            ];
+        }
+
+        return [];
+    }
+}
+
+/**
+ * Minimaler PSR-18 Client für Tests — gibt immer 200 OK zurück.
+ */
+class NullPsr18Client implements ClientInterface
+{
+    public function sendRequest(RequestInterface $request): ResponseInterface
+    {
+        return new Response(200, [], '{}');
     }
 }
