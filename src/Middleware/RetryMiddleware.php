@@ -12,7 +12,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Middleware that adds retry functionality to HTTP requests
+ * Middleware that adds retry functionality to HTTP requests.
  *
  * Automatically retries failed requests based on configurable retry strategies,
  * with exponential backoff and configurable retry conditions.
@@ -22,7 +22,6 @@ class RetryMiddleware implements MiddlewareInterface
     public function __construct(
         private readonly RetryConfig $retryConfig,
         private readonly LoggerInterface $logger = new NullLogger(),
-        private readonly string $marketplace = 'general'
     ) {}
 
     public function wrap(HttpTransportInterface $transport): HttpTransportInterface
@@ -31,7 +30,6 @@ class RetryMiddleware implements MiddlewareInterface
             $transport,
             $this->retryConfig,
             $this->logger,
-            $this->marketplace
         );
     }
 
@@ -57,7 +55,6 @@ class RetryHttpTransport implements HttpTransportInterface
         private readonly HttpTransportInterface $transport,
         private readonly RetryConfig $retryConfig,
         private readonly LoggerInterface $logger,
-        private readonly string $marketplace
     ) {}
 
     /**
@@ -76,7 +73,6 @@ class RetryHttpTransport implements HttpTransportInterface
                 $statusCode = $response->getStatusCode();
                 if ($attempt < $this->retryConfig->maxAttempts && $this->retryConfig->shouldRetryStatusCode($statusCode)) {
                     $this->logger->warning('HTTP request returned retryable status code', [
-                        'marketplace' => $this->marketplace,
                         'method' => $method,
                         'url' => $this->sanitizeUrl($url),
                         'status_code' => $statusCode,
@@ -92,7 +88,6 @@ class RetryHttpTransport implements HttpTransportInterface
                 // Success or non-retryable error
                 if ($attempt > 1) {
                     $this->logger->info('HTTP request succeeded after retries', [
-                        'marketplace' => $this->marketplace,
                         'method' => $method,
                         'url' => $this->sanitizeUrl($url),
                         'attempts' => $attempt,
@@ -108,7 +103,6 @@ class RetryHttpTransport implements HttpTransportInterface
                 // Check if this exception is retryable
                 if ($attempt < $this->retryConfig->maxAttempts && $this->shouldRetryException($exception)) {
                     $this->logger->warning('HTTP request failed with retryable exception', [
-                        'marketplace' => $this->marketplace,
                         'method' => $method,
                         'url' => $this->sanitizeUrl($url),
                         'exception' => get_class($exception),
@@ -131,7 +125,6 @@ class RetryHttpTransport implements HttpTransportInterface
         if ($lastException !== null) {
             if ($attempt > 1) {
                 $this->logger->error('HTTP request failed after all retry attempts', [
-                    'marketplace' => $this->marketplace,
                     'method' => $method,
                     'url' => $this->sanitizeUrl($url),
                     'attempts' => $attempt - 1,
@@ -142,7 +135,6 @@ class RetryHttpTransport implements HttpTransportInterface
                 // Wrap the final exception with retry context
                 throw RetryableException::fromException(
                     $lastException,
-                    $this->marketplace,
                     $this->extractOperationFromUrl($url),
                     $attempt - 1,
                     $this->retryConfig->maxAttempts,
@@ -167,7 +159,6 @@ class RetryHttpTransport implements HttpTransportInterface
             $this->transport->withOptions($options),
             $this->retryConfig,
             $this->logger,
-            $this->marketplace
         );
     }
 
@@ -207,7 +198,6 @@ class RetryHttpTransport implements HttpTransportInterface
 
         if ($delay > 0) {
             $this->logger->debug('Waiting before retry', [
-                'marketplace' => $this->marketplace,
                 'attempt' => $attempt,
                 'delay_seconds' => $delay,
             ]);
@@ -229,5 +219,4 @@ class RetryHttpTransport implements HttpTransportInterface
 
         return $pathParts[count($pathParts) - 1] ?: 'unknown';
     }
-
 }

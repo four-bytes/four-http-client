@@ -10,10 +10,9 @@ use Four\Http\Middleware\MiddlewareInterface;
 use Four\Http\Middleware\OAuth1aMiddleware;
 use Four\Http\Middleware\RateLimitingMiddleware;
 use Four\Http\Middleware\RetryMiddleware;
+use Four\Http\Transport\DiscoveryHttpTransport;
 use Four\Http\Transport\HttpTransportInterface;
-use Four\Http\Transport\SymfonyHttpTransport;
 use Four\Http\Transport\TransportPsr18Adapter;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -22,17 +21,15 @@ use Psr\Log\NullLogger;
  * Factory für PSR-18-konforme HTTP-Clients.
  *
  * Baut intern über HttpTransportInterface + Middleware-Stack.
- * Symfony HttpClient wird als optionaler Default-Transport genutzt.
+ * Nutzt php-http/discovery zur automatischen PSR-18 Client-Erkennung.
  */
-class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
+class HttpClientFactory implements HttpClientFactoryInterface
 {
     /** @var array<string, string> */
     private array $availableMiddleware = [];
 
     public function __construct(
         private readonly ?LoggerInterface $logger = null,
-        /** @phpstan-ignore property.onlyWritten */
-        private readonly ?CacheItemPoolInterface $cache = null,
     ) {
         $this->initializeMiddleware();
     }
@@ -42,7 +39,7 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
      */
     public function create(ClientConfig $config): ClientInterface
     {
-        // Transport aufbauen (Symfony als Default wenn verfügbar)
+        // Transport aufbauen (via php-http/discovery)
         $transport = $this->buildTransport($config);
 
         // Middleware stapeln
@@ -67,18 +64,20 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
     }
 
     /**
-     * Baut den HTTP-Transport auf. Symfony wird als Default genutzt wenn installiert.
+     * Baut den HTTP-Transport auf via php-http/discovery.
      */
     private function buildTransport(ClientConfig $config): HttpTransportInterface
     {
-        if (class_exists(\Symfony\Component\HttpClient\HttpClient::class)) {
-            $symfonyClient = \Symfony\Component\HttpClient\HttpClient::create($config->toHttpClientOptions());
-            return new SymfonyHttpTransport($symfonyClient);
+        try {
+            $psrClient = \Http\Discovery\Psr18ClientDiscovery::find();
+            return new DiscoveryHttpTransport($psrClient, $config->toHttpClientOptions());
+        } catch (\Http\Discovery\Exception\NotFoundException $e) {
+            throw new \RuntimeException(
+                'No PSR-18 HTTP client found. Install symfony/http-client, guzzlehttp/guzzle, or another PSR-18 implementation.',
+                0,
+                $e
+            );
         }
-
-        throw new \RuntimeException(
-            'No HTTP transport available. Install symfony/http-client or provide a custom HttpTransportInterface.'
-        );
     }
 
     private function initializeMiddleware(): void

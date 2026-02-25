@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Exception;
 
 /**
- * Exception thrown when authentication fails
+ * Exception thrown when authentication fails.
  *
  * This exception is thrown when HTTP requests fail due to authentication
  * issues such as invalid credentials, expired tokens, or missing authentication.
@@ -16,11 +16,10 @@ class AuthenticationException extends HttpClientException
         string $message = 'Authentication failed',
         int $code = 401,
         ?\Throwable $previous = null,
-        ?string $marketplace = null,
         ?string $operation = null,
         private readonly ?string $authType = null
     ) {
-        parent::__construct($message, $code, $previous, $marketplace, $operation);
+        parent::__construct($message, $code, $previous, $operation);
     }
 
     /**
@@ -34,15 +33,12 @@ class AuthenticationException extends HttpClientException
     /**
      * Create exception for expired token
      */
-    public static function tokenExpired(
-        ?string $marketplace = null,
-        ?string $operation = null
-    ): self {
+    public static function tokenExpired(?string $operation = null): self
+    {
         return new self(
             'Authentication token has expired',
             401,
             null,
-            $marketplace,
             $operation,
             'token'
         );
@@ -51,15 +47,12 @@ class AuthenticationException extends HttpClientException
     /**
      * Create exception for invalid credentials
      */
-    public static function invalidCredentials(
-        ?string $marketplace = null,
-        ?string $operation = null
-    ): self {
+    public static function invalidCredentials(?string $operation = null): self
+    {
         return new self(
             'Invalid authentication credentials',
             401,
             null,
-            $marketplace,
             $operation,
             'credentials'
         );
@@ -68,15 +61,12 @@ class AuthenticationException extends HttpClientException
     /**
      * Create exception for missing authentication
      */
-    public static function missing(
-        ?string $marketplace = null,
-        ?string $operation = null
-    ): self {
+    public static function missing(?string $operation = null): self
+    {
         return new self(
             'Authentication required but not provided',
             401,
             null,
-            $marketplace,
             $operation,
             'missing'
         );
@@ -85,15 +75,12 @@ class AuthenticationException extends HttpClientException
     /**
      * Create exception for insufficient permissions
      */
-    public static function insufficientPermissions(
-        ?string $marketplace = null,
-        ?string $operation = null
-    ): self {
+    public static function insufficientPermissions(?string $operation = null): self
+    {
         return new self(
             'Insufficient permissions for this operation',
             403,
             null,
-            $marketplace,
             $operation,
             'permissions'
         );

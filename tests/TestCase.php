@@ -8,7 +8,6 @@ use Four\Http\Transport\HttpResponseInterface;
 use Four\Http\Transport\HttpTransportInterface;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 use Psr\Log\NullLogger;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
  * Base test case with common utilities for HTTP client testing
@@ -16,14 +15,12 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 abstract class TestCase extends BaseTestCase
 {
     protected NullLogger $logger;
-    protected ArrayAdapter $cache;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->logger = new NullLogger();
-        $this->cache = new ArrayAdapter();
     }
 
     /**

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Exception;
 
 /**
- * Exception for errors that can be retried
+ * Exception for errors that can be retried.
  *
  * This exception indicates that an HTTP request failed due to a temporary
  * issue and the operation can be retried after a delay.
@@ -16,13 +16,12 @@ class RetryableException extends HttpClientException
         string $message = 'Retryable error occurred',
         int $code = 0,
         ?\Throwable $previous = null,
-        ?string $marketplace = null,
         ?string $operation = null,
         private readonly int $currentAttempt = 1,
         private readonly int $maxAttempts = 3,
         private readonly float $nextRetryDelay = 1.0
     ) {
-        parent::__construct($message, $code, $previous, $marketplace, $operation);
+        parent::__construct($message, $code, $previous, $operation);
     }
 
     /**
@@ -61,7 +60,6 @@ class RetryableException extends HttpClientException
      * Create exception for network timeout
      */
     public static function networkTimeout(
-        ?string $marketplace = null,
         ?string $operation = null,
         int $currentAttempt = 1,
         int $maxAttempts = 3,
@@ -71,7 +69,6 @@ class RetryableException extends HttpClientException
             'Network timeout occurred',
             0,
             null,
-            $marketplace,
             $operation,
             $currentAttempt,
             $maxAttempts,
@@ -84,7 +81,6 @@ class RetryableException extends HttpClientException
      */
     public static function serverError(
         int $statusCode,
-        ?string $marketplace = null,
         ?string $operation = null,
         int $currentAttempt = 1,
         int $maxAttempts = 3,
@@ -94,7 +90,6 @@ class RetryableException extends HttpClientException
             "Server error: HTTP {$statusCode}",
             $statusCode,
             null,
-            $marketplace,
             $operation,
             $currentAttempt,
             $maxAttempts,
@@ -107,7 +102,6 @@ class RetryableException extends HttpClientException
      */
     public static function fromException(
         \Throwable $previous,
-        ?string $marketplace = null,
         ?string $operation = null,
         int $currentAttempt = 1,
         int $maxAttempts = 3,
@@ -117,7 +111,6 @@ class RetryableException extends HttpClientException
             "Retryable error: {$previous->getMessage()}",
             $previous->getCode(),
             $previous,
-            $marketplace,
             $operation,
             $currentAttempt,
             $maxAttempts,

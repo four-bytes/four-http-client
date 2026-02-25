@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Four\Http\Transport;
 
-use Symfony\Contracts\HttpClient\ResponseInterface;
+use Psr\Http\Message\ResponseInterface;
 
-class SymfonyHttpResponse implements HttpResponseInterface
+/**
+ * Adaptiert eine PSR-7 ResponseInterface auf HttpResponseInterface.
+ */
+class Psr7HttpResponse implements HttpResponseInterface
 {
     public function __construct(private readonly ResponseInterface $response) {}
 
@@ -20,12 +23,12 @@ class SymfonyHttpResponse implements HttpResponseInterface
      */
     public function getHeaders(bool $throw = true): array
     {
-        return $this->response->getHeaders($throw);
+        return $this->response->getHeaders();
     }
 
     public function getContent(bool $throw = true): string
     {
-        return $this->response->getContent($throw);
+        return (string) $this->response->getBody();
     }
 
     /**
@@ -33,6 +36,7 @@ class SymfonyHttpResponse implements HttpResponseInterface
      */
     public function toArray(bool $throw = true): array
     {
-        return $this->response->toArray($throw);
+        $content = $this->getContent();
+        return json_decode($content, true, 512, JSON_THROW_ON_ERROR);
     }
 }
