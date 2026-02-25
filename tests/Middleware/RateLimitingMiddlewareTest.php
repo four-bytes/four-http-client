@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Tests\Middleware;
+namespace Four\Http\Tests\Middleware;
 
-use Four\MarketplaceHttp\Exception\RateLimitException;
-use Four\MarketplaceHttp\Middleware\RateLimitingMiddleware;
-use Four\MarketplaceHttp\Tests\TestCase;
+use Four\Http\Exception\RateLimitException;
+use Four\Http\Middleware\RateLimitingMiddleware;
+use Four\Http\Tests\TestCase;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\CacheStorage;
 

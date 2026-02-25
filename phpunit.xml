@@ -11,13 +11,7 @@
          failOnWarning="true">
     <testsuites>
         <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Integration">
-            <directory>tests/Integration</directory>
-        </testsuite>
-        <testsuite name="Functional">
-            <directory>tests/Functional</directory>
+            <directory>tests</directory>
         </testsuite>
     </testsuites>
     <source restrictDeprecations="true" restrictNotices="true" restrictWarnings="true">

@@ -48,7 +48,7 @@ A modern PHP 8.4+ HTTP client factory and middleware library specifically design
 ## Installation
 
 ```bash
-composer require four-bytes/four-marketplace-http-client
+composer require four-bytes/four-http-client
 ```
 
 ## Requirements

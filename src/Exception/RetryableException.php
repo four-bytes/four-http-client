@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Exception;
+namespace Four\Http\Exception;
 
 /**
  * Exception for errors that can be retried

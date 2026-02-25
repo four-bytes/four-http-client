@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Authentication;
+namespace Four\Http\Authentication;
 
-use Four\MarketplaceHttp\Exception\AuthenticationException;
+use Four\Http\Exception\AuthenticationException;
 
 /**
  * Authentication provider for token-based authentication

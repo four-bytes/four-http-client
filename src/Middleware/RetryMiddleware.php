@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Middleware;
+namespace Four\Http\Middleware;
 
-use Four\MarketplaceHttp\Configuration\RetryConfig;
-use Four\MarketplaceHttp\Exception\RetryableException;
+use Four\Http\Configuration\RetryConfig;
+use Four\Http\Exception\RetryableException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;

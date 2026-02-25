@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Middleware;
+namespace Four\Http\Middleware;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 

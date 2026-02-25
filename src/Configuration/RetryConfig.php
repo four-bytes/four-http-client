@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Configuration;
+namespace Four\Http\Configuration;
 
 /**
  * Configuration for retry strategies

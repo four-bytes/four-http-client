@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Tests\Authentication;
+namespace Four\Http\Tests\Authentication;
 
-use Four\MarketplaceHttp\Authentication\OAuth1aProvider;
-use Four\MarketplaceHttp\Tests\TestCase;
+use Four\Http\Authentication\OAuth1aProvider;
+use Four\Http\Tests\TestCase;
 
 /**
  * Tests for OAuth1aProvider
@@ -236,7 +236,7 @@ class OAuth1aProviderTest extends TestCase
             'INVALID-METHOD'
         );
         
-        $this->expectException(\Four\MarketplaceHttp\Exception\AuthenticationException::class);
+        $this->expectException(\Four\Http\Exception\AuthenticationException::class);
         $this->expectExceptionMessage('Unsupported signature method: INVALID-METHOD');
         
         $provider->getAuthHeadersForRequest('GET', 'https://api.example.com/test');

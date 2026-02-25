@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Configuration;
+namespace Four\Http\Configuration;
 
-use Four\MarketplaceHttp\Authentication\AuthProviderInterface;
-use Four\MarketplaceHttp\Configuration\RetryConfig;
+use Four\Http\Authentication\AuthProviderInterface;
+use Four\Http\Configuration\RetryConfig;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;

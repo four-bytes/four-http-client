@@ -2,144 +2,65 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Factory;
+namespace Four\Http\Factory;
 
-use Four\MarketplaceHttp\Configuration\ClientConfig;
-use Four\MarketplaceHttp\Configuration\RetryConfig;
-use Four\MarketplaceHttp\Middleware\LoggingMiddleware;
-use Four\MarketplaceHttp\Middleware\MiddlewareInterface;
-use Four\MarketplaceHttp\Middleware\RateLimitingMiddleware;
-use Four\MarketplaceHttp\Middleware\RetryMiddleware;
+use Four\Http\Configuration\ClientConfig;
+use Four\Http\Middleware\LoggingMiddleware;
+use Four\Http\Middleware\MiddlewareInterface;
+use Four\Http\Middleware\RateLimitingMiddleware;
+use Four\Http\Middleware\RetryMiddleware;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Http\Client\ClientInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\CacheStorage;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Factory for creating marketplace-specific HTTP clients
+ * Factory für PSR-18-konforme HTTP-Clients.
  *
- * This factory creates HTTP clients optimized for marketplace API integrations,
- * with pre-configured middleware for rate limiting, logging, retries, and authentication.
+ * Kapselt Symfony HttpClient als PSR-18-Adapter.
+ * Keine marketplace-spezifische Logik — generische Infrastruktur.
  */
 class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
 {
-    /** @var array<string, MiddlewareInterface> */
+    /** @var array<string, string> */
     private array $availableMiddleware = [];
 
     public function __construct(
         private readonly ?LoggerInterface $logger = null,
-        private readonly ?CacheItemPoolInterface $cache = null
+        private readonly ?CacheItemPoolInterface $cache = null,
     ) {
         $this->initializeMiddleware();
     }
 
-    public function createClient(ClientConfig $config): HttpClientInterface
+    /**
+     * Erstellt einen PSR-18-Client mit Middleware-Stack aus der Config.
+     */
+    public function create(ClientConfig $config): ClientInterface
     {
-        // Create base Symfony HTTP client
-        $client = HttpClient::create($config->toHttpClientOptions());
+        // Symfony HttpClient als PSR-18-Adapter wrappen
+        $symfonyClient = HttpClient::create($config->toHttpClientOptions());
+        $psr18Client = new Psr18Client($symfonyClient);
 
-        // Apply middleware in priority order (highest priority first)
+        // Middleware auf Symfony-Ebene anwenden (Decorator-Pattern)
         $middleware = $this->getMiddlewareForConfig($config);
-        
-        // Sort by priority (descending)
-        uasort($middleware, fn(MiddlewareInterface $a, MiddlewareInterface $b) => $b->getPriority() <=> $a->getPriority());
 
+        // Nach Priority sortieren (absteigend)
+        uasort(
+            $middleware,
+            static fn(MiddlewareInterface $a, MiddlewareInterface $b): int => $b->getPriority() <=> $a->getPriority(),
+        );
+
+        $decoratedSymfonyClient = $symfonyClient;
         foreach ($middleware as $middlewareInstance) {
-            $client = $middlewareInstance->wrap($client);
+            $decoratedSymfonyClient = $middlewareInstance->wrap($decoratedSymfonyClient);
         }
 
-        return $client;
-    }
-
-    public function createAmazonClient(ClientConfig $config): HttpClientInterface
-    {
-        // Apply Amazon-specific optimizations
-        $amazonConfig = $config->with(
-            defaultHeaders: array_merge([
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-                'User-Agent' => 'Four-MarketplaceHttp/1.0 (Amazon SP-API)'
-            ], $config->defaultHeaders),
-            retryConfig: $config->retryConfig ?? RetryConfig::forMarketplace('amazon')
-        );
-
-        // Ensure rate limiting is enabled for Amazon
-        if (!$amazonConfig->hasMiddleware('rate_limiting') && $config->rateLimiterFactory !== null) {
-            $amazonConfig = $amazonConfig->with(
-                middleware: array_merge($amazonConfig->middleware, ['rate_limiting'])
-            );
-        }
-
-        return $this->createClient($amazonConfig);
-    }
-
-    public function createEbayClient(ClientConfig $config): HttpClientInterface
-    {
-        // Apply eBay-specific optimizations
-        $ebayConfig = $config->with(
-            defaultHeaders: array_merge([
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-                'User-Agent' => 'Four-MarketplaceHttp/1.0 (eBay API)'
-            ], $config->defaultHeaders),
-            retryConfig: $config->retryConfig ?? RetryConfig::forMarketplace('ebay')
-        );
-
-        // Ensure rate limiting is enabled for eBay
-        if (!$ebayConfig->hasMiddleware('rate_limiting') && $config->rateLimiterFactory !== null) {
-            $ebayConfig = $ebayConfig->with(
-                middleware: array_merge($ebayConfig->middleware, ['rate_limiting'])
-            );
-        }
-
-        return $this->createClient($ebayConfig);
-    }
-
-    public function createDiscogsClient(ClientConfig $config): HttpClientInterface
-    {
-        // Apply Discogs-specific optimizations
-        $discogsConfig = $config->with(
-            defaultHeaders: array_merge([
-                'Accept' => 'application/vnd.discogs.v2.discogs+json',
-                'User-Agent' => 'Four-MarketplaceHttp/1.0 +https://4bytes.de'
-            ], $config->defaultHeaders),
-            retryConfig: $config->retryConfig ?? RetryConfig::forMarketplace('discogs')
-        );
-
-        // Discogs requires conservative rate limiting
-        if (!$discogsConfig->hasMiddleware('rate_limiting') && $config->rateLimiterFactory !== null) {
-            $discogsConfig = $discogsConfig->with(
-                middleware: array_merge($discogsConfig->middleware, ['rate_limiting'])
-            );
-        }
-
-        return $this->createClient($discogsConfig);
-    }
-
-    public function createBandcampClient(ClientConfig $config): HttpClientInterface
-    {
-        // Apply Bandcamp-specific optimizations
-        $bandcampConfig = $config->with(
-            defaultHeaders: array_merge([
-                'Accept' => 'application/json',
-                'User-Agent' => 'Mozilla/5.0 (compatible; Four-MarketplaceHttp/1.0)'
-            ], $config->defaultHeaders),
-            retryConfig: $config->retryConfig ?? RetryConfig::forMarketplace('bandcamp'),
-            timeout: 15.0 // Shorter timeout for unofficial API
-        );
-
-        // Very conservative rate limiting for unofficial API
-        if (!$bandcampConfig->hasMiddleware('rate_limiting') && $config->rateLimiterFactory !== null) {
-            $bandcampConfig = $bandcampConfig->with(
-                middleware: array_merge($bandcampConfig->middleware, ['rate_limiting'])
-            );
-        }
-
-        return $this->createClient($bandcampConfig);
+        return new Psr18Client($decoratedSymfonyClient);
     }
 
     public function getAvailableMiddleware(): array
@@ -148,65 +69,36 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
     }
 
     /**
-     * Create a rate limiter factory for a specific marketplace
+     * Erstellt eine RateLimiterFactory für die gegebene Konfiguration.
+     *
+     * @param array<string, mixed> $config Optionale Überschreibung der Rate-Limit-Parameter
      */
-    public function createRateLimiterFactory(string $marketplace, array $config = []): RateLimiterFactory
+    public function createRateLimiterFactory(string $id, array $config = []): RateLimiterFactory
     {
         $cache = $this->cache ?? new ArrayAdapter();
         $storage = new CacheStorage($cache);
 
-        $defaultConfigs = [
-            'amazon' => [
-                'id' => 'amazon',
-                'policy' => 'token_bucket',
-                'limit' => 20,
-                'rate' => ['interval' => '1 second', 'amount' => 20]
-            ],
-            'ebay' => [
-                'id' => 'ebay',
-                'policy' => 'fixed_window',
-                'limit' => 5000,
-                'rate' => ['interval' => '1 day']
-            ],
-            'discogs' => [
-                'id' => 'discogs',
-                'policy' => 'sliding_window',
-                'limit' => 60,
-                'rate' => ['interval' => '1 minute']
-            ],
-            'bandcamp' => [
-                'id' => 'bandcamp',
-                'policy' => 'token_bucket',
-                'limit' => 2,
-                'rate' => ['interval' => '1 second', 'amount' => 1]
-            ]
+        $defaults = [
+            'id'     => $id,
+            'policy' => 'token_bucket',
+            'limit'  => 60,
+            'rate'   => ['interval' => '1 minute', 'amount' => 60],
         ];
 
-        $marketplaceConfig = array_merge($defaultConfigs[$marketplace] ?? $defaultConfigs['amazon'], $config);
-
-        return new RateLimiterFactory($marketplaceConfig, $storage);
+        return new RateLimiterFactory(array_merge($defaults, $config), $storage);
     }
 
-    /**
-     * Initialize available middleware instances
-     */
     private function initializeMiddleware(): void
     {
-        $logger = $this->logger ?? new NullLogger();
-
-        // Note: These are factory methods, actual instances created per request
         $this->availableMiddleware = [
-            'logging' => 'logging',
-            'rate_limiting' => 'rate_limiting', 
-            'retry' => 'retry',
-            'authentication' => 'authentication',
-            'caching' => 'caching',
-            'performance' => 'performance'
+            'logging'      => 'logging',
+            'rate_limiting' => 'rate_limiting',
+            'retry'        => 'retry',
         ];
     }
 
     /**
-     * Get middleware instances for a configuration
+     * Instanziiert die in der Config aktivierten Middleware-Objekte.
      *
      * @return array<string, MiddlewareInterface>
      */
@@ -215,70 +107,32 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
         $middleware = [];
         $logger = $config->logger ?? $this->logger ?? new NullLogger();
 
-        foreach ($config->middleware as $middlewareName) {
-            switch ($middlewareName) {
+        foreach ($config->middleware as $name) {
+            switch ($name) {
                 case 'logging':
-                    $marketplace = $this->extractMarketplaceFromConfig($config);
-                    $middleware[$middlewareName] = new LoggingMiddleware($logger, $marketplace);
+                    $middleware[$name] = new LoggingMiddleware($logger);
                     break;
 
                 case 'rate_limiting':
                     if ($config->rateLimiterFactory !== null) {
-                        $marketplace = $this->extractMarketplaceFromConfig($config);
-                        $middleware[$middlewareName] = new RateLimitingMiddleware(
+                        $middleware[$name] = new RateLimitingMiddleware(
                             $config->rateLimiterFactory,
                             $logger,
-                            $marketplace
                         );
                     }
                     break;
 
                 case 'retry':
                     if ($config->retryConfig !== null) {
-                        $marketplace = $this->extractMarketplaceFromConfig($config);
-                        $middleware[$middlewareName] = new RetryMiddleware(
+                        $middleware[$name] = new RetryMiddleware(
                             $config->retryConfig,
                             $logger,
-                            $marketplace
                         );
                     }
-                    break;
-
-                // Additional middleware can be implemented here
-                case 'authentication':
-                case 'caching':
-                case 'performance':
-                    // Placeholder for future middleware implementations
                     break;
             }
         }
 
         return $middleware;
-    }
-
-    /**
-     * Extract marketplace name from configuration
-     */
-    private function extractMarketplaceFromConfig(ClientConfig $config): string
-    {
-        $baseUri = $config->baseUri;
-        
-        if (str_contains($baseUri, 'amazon.com')) {
-            return 'amazon';
-        }
-        
-        if (str_contains($baseUri, 'ebay.com')) {
-            return 'ebay';
-        }
-        
-        if (str_contains($baseUri, 'discogs.com')) {
-            return 'discogs';
-        }
-        
-        if (str_contains($baseUri, 'bandcamp.com')) {
-            return 'bandcamp';
-        }
-        
-        return 'general';
     }
 }

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Tests\Configuration;
+namespace Four\Http\Tests\Configuration;
 
-use Four\MarketplaceHttp\Configuration\ClientConfig;
-use Four\MarketplaceHttp\Tests\TestCase;
+use Four\Http\Configuration\ClientConfig;
+use Four\Http\Tests\TestCase;
 
 /**
  * Tests for ClientConfigBuilder fluent API

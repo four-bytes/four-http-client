@@ -2,195 +2,121 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Tests\Factory;
+namespace Four\Http\Tests\Factory;
 
-use Four\MarketplaceHttp\Configuration\ClientConfig;
-use Four\MarketplaceHttp\Factory\MarketplaceHttpClientFactory;
-use Four\MarketplaceHttp\Tests\TestCase;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Four\Http\Configuration\ClientConfig;
+use Four\Http\Factory\MarketplaceHttpClientFactory;
+use Four\Http\Tests\TestCase;
+use Psr\Http\Client\ClientInterface;
 
 /**
- * Tests for MarketplaceHttpClientFactory
+ * Tests für MarketplaceHttpClientFactory (PSR-18 API)
  */
 class MarketplaceHttpClientFactoryTest extends TestCase
 {
     private MarketplaceHttpClientFactory $factory;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->factory = new MarketplaceHttpClientFactory($this->logger, $this->cache);
     }
-    
-    public function testCreateBasicClient(): void
+
+    public function testCreateReturnsPsr18Client(): void
     {
         $config = ClientConfig::create('https://api.example.com')
             ->withTimeout(30.0)
             ->build();
-        
-        $client = $this->factory->createClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
+
+        $client = $this->factory->create($config);
+
+        $this->assertInstanceOf(ClientInterface::class, $client);
     }
-    
-    public function testCreateAmazonClient(): void
+
+    public function testCreateWithLoggingMiddleware(): void
     {
-        $config = ClientConfig::create('https://sellingpartnerapi-eu.amazon.com')
-            ->withHeader('x-amz-access-token', 'test-token')
+        $config = ClientConfig::create('https://api.example.com')
+            ->withMiddleware(['logging'])
             ->build();
-        
-        $client = $this->factory->createAmazonClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
+
+        $client = $this->factory->create($config);
+
+        $this->assertInstanceOf(ClientInterface::class, $client);
     }
-    
-    public function testCreateEbayClient(): void
+
+    public function testCreateWithRetryMiddleware(): void
     {
-        $config = ClientConfig::create('https://api.ebay.com')
-            ->withHeader('Authorization', 'Bearer test-token')
+        $config = ClientConfig::create('https://api.example.com')
+            ->withRetries(new \Four\Http\Configuration\RetryConfig())
             ->build();
-        
-        $client = $this->factory->createEbayClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
+
+        $client = $this->factory->create($config);
+
+        $this->assertInstanceOf(ClientInterface::class, $client);
     }
-    
-    public function testCreateDiscogsClient(): void
+
+    public function testCreateWithCustomHeaders(): void
     {
-        $config = ClientConfig::create('https://api.discogs.com')
-            ->withHeader('Authorization', 'Discogs token=test-token')
+        $config = ClientConfig::create('https://api.example.com')
+            ->withHeaders([
+                'X-Custom-Header' => 'custom-value',
+                'User-Agent'      => 'Test-Client/1.0',
+            ])
             ->build();
-        
-        $client = $this->factory->createDiscogsClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
+
+        $client = $this->factory->create($config);
+
+        $this->assertInstanceOf(ClientInterface::class, $client);
     }
-    
-    public function testCreateBandcampClient(): void
-    {
-        $config = ClientConfig::create('https://bandcamp.com/api')
-            ->withHeader('Authorization', 'Bearer test-token')
-            ->build();
-        
-        $client = $this->factory->createBandcampClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
-    }
-    
+
     public function testCreateRateLimiterFactory(): void
     {
-        $rateLimiterFactory = $this->factory->createRateLimiterFactory('amazon');
-        
+        $rateLimiterFactory = $this->factory->createRateLimiterFactory('generic');
+
         $this->assertNotNull($rateLimiterFactory);
     }
-    
+
     public function testCreateRateLimiterFactoryWithCustomConfig(): void
     {
         $customConfig = [
             'limit' => 50,
-            'rate' => ['interval' => '1 minute', 'amount' => 50]
+            'rate'  => ['interval' => '1 minute', 'amount' => 50],
         ];
-        
+
         $rateLimiterFactory = $this->factory->createRateLimiterFactory('custom', $customConfig);
-        
+
         $this->assertNotNull($rateLimiterFactory);
     }
-    
+
     public function testGetAvailableMiddleware(): void
     {
         $middleware = $this->factory->getAvailableMiddleware();
-        
-        $expectedMiddleware = [
-            'logging',
-            'rate_limiting',
-            'retry',
-            'authentication',
-            'caching',
-            'performance'
-        ];
-        
-        foreach ($expectedMiddleware as $expected) {
-            $this->assertContains($expected, $middleware);
-        }
+
+        $this->assertContains('logging', $middleware);
+        $this->assertContains('rate_limiting', $middleware);
+        $this->assertContains('retry', $middleware);
     }
-    
-    public function testClientWithMultipleMiddleware(): void
+
+    public function testGetAvailableMiddlewareDoesNotContainMarketplaceSpecific(): void
+    {
+        $middleware = $this->factory->getAvailableMiddleware();
+
+        // Keine marketplace-spezifischen Einträge mehr
+        $this->assertNotContains('amazon', $middleware);
+        $this->assertNotContains('ebay', $middleware);
+        $this->assertNotContains('discogs', $middleware);
+        $this->assertNotContains('bandcamp', $middleware);
+    }
+
+    public function testCreateWithMultipleMiddleware(): void
     {
         $config = ClientConfig::create('https://api.example.com')
-            ->withMiddleware(['logging', 'rate_limiting', 'retry'])
+            ->withMiddleware(['logging', 'retry'])
             ->withTimeout(45.0)
             ->build();
-        
-        $client = $this->factory->createClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
-    }
-    
-    public function testClientWithCustomHeaders(): void
-    {
-        $customHeaders = [
-            'X-Custom-Header' => 'custom-value',
-            'User-Agent' => 'Test-Client/1.0'
-        ];
-        
-        $config = ClientConfig::create('https://api.example.com')
-            ->withHeaders($customHeaders)
-            ->build();
-        
-        $client = $this->factory->createClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
-    }
-    
-    public function testAmazonClientWithSpecificConfiguration(): void
-    {
-        $config = ClientConfig::create('https://sellingpartnerapi-eu.amazon.com')
-            ->withHeader('x-amz-access-token', 'test-token')
-            ->withHeader('x-amzn-marketplace-id', 'A1PA6795UKMFR9')
-            ->withTimeout(30.0)
-            ->build();
-        
-        $client = $this->factory->createAmazonClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
-        
-        // Verify that Amazon-specific defaults were applied
-        $this->assertSame(30.0, $config->timeout);
-    }
-    
-    public function testEbayClientWithSpecificConfiguration(): void
-    {
-        $config = ClientConfig::create('https://api.ebay.com')
-            ->withHeader('Authorization', 'Bearer test-token')
-            ->withTimeout(25.0)
-            ->build();
-        
-        $client = $this->factory->createEbayClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
-    }
-    
-    public function testDiscogsClientWithSpecificConfiguration(): void
-    {
-        $config = ClientConfig::create('https://api.discogs.com')
-            ->withHeader('Authorization', 'Discogs token=test-token')
-            ->withTimeout(15.0)
-            ->build();
-        
-        $client = $this->factory->createDiscogsClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
-    }
-    
-    public function testBandcampClientWithSpecificConfiguration(): void
-    {
-        $config = ClientConfig::create('https://bandcamp.com/api')
-            ->withHeader('Authorization', 'Bearer test-token')
-            ->withTimeout(15.0)
-            ->build();
-        
-        $client = $this->factory->createBandcampClient($config);
-        
-        $this->assertInstanceOf(HttpClientInterface::class, $client);
+
+        $client = $this->factory->create($config);
+
+        $this->assertInstanceOf(ClientInterface::class, $client);
     }
 }
