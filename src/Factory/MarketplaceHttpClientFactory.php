@@ -9,21 +9,19 @@ use Four\Http\Middleware\LoggingMiddleware;
 use Four\Http\Middleware\MiddlewareInterface;
 use Four\Http\Middleware\RateLimitingMiddleware;
 use Four\Http\Middleware\RetryMiddleware;
+use Four\Http\Transport\HttpTransportInterface;
+use Four\Http\Transport\SymfonyHttpTransport;
+use Four\Http\Transport\TransportPsr18Adapter;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
-use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\HttpClient\Psr18Client;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
-use Symfony\Component\RateLimiter\Storage\CacheStorage;
 
 /**
  * Factory für PSR-18-konforme HTTP-Clients.
  *
- * Kapselt Symfony HttpClient als PSR-18-Adapter.
- * Keine marketplace-spezifische Logik — generische Infrastruktur.
+ * Baut intern über HttpTransportInterface + Middleware-Stack.
+ * Symfony HttpClient wird als optionaler Default-Transport genutzt.
  */
 class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
 {
@@ -42,11 +40,10 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
      */
     public function create(ClientConfig $config): ClientInterface
     {
-        // Symfony HttpClient als PSR-18-Adapter wrappen
-        $symfonyClient = HttpClient::create($config->toHttpClientOptions());
-        $psr18Client = new Psr18Client($symfonyClient);
+        // Transport aufbauen (Symfony als Default wenn verfügbar)
+        $transport = $this->buildTransport($config);
 
-        // Middleware auf Symfony-Ebene anwenden (Decorator-Pattern)
+        // Middleware stapeln
         $middleware = $this->getMiddlewareForConfig($config);
 
         // Nach Priority sortieren (absteigend)
@@ -55,12 +52,11 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
             static fn(MiddlewareInterface $a, MiddlewareInterface $b): int => $b->getPriority() <=> $a->getPriority(),
         );
 
-        $decoratedSymfonyClient = $symfonyClient;
         foreach ($middleware as $middlewareInstance) {
-            $decoratedSymfonyClient = $middlewareInstance->wrap($decoratedSymfonyClient);
+            $transport = $middlewareInstance->wrap($transport);
         }
 
-        return new Psr18Client($decoratedSymfonyClient);
+        return new TransportPsr18Adapter($transport);
     }
 
     public function getAvailableMiddleware(): array
@@ -69,31 +65,26 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
     }
 
     /**
-     * Erstellt eine RateLimiterFactory für die gegebene Konfiguration.
-     *
-     * @param array<string, mixed> $config Optionale Überschreibung der Rate-Limit-Parameter
+     * Baut den HTTP-Transport auf. Symfony wird als Default genutzt wenn installiert.
      */
-    public function createRateLimiterFactory(string $id, array $config = []): RateLimiterFactory
+    private function buildTransport(ClientConfig $config): HttpTransportInterface
     {
-        $cache = $this->cache ?? new ArrayAdapter();
-        $storage = new CacheStorage($cache);
+        if (class_exists(\Symfony\Component\HttpClient\HttpClient::class)) {
+            $symfonyClient = \Symfony\Component\HttpClient\HttpClient::create($config->toHttpClientOptions());
+            return new SymfonyHttpTransport($symfonyClient);
+        }
 
-        $defaults = [
-            'id'     => $id,
-            'policy' => 'token_bucket',
-            'limit'  => 60,
-            'rate'   => ['interval' => '1 minute', 'amount' => 60],
-        ];
-
-        return new RateLimiterFactory(array_merge($defaults, $config), $storage);
+        throw new \RuntimeException(
+            'No HTTP transport available. Install symfony/http-client or provide a custom HttpTransportInterface.'
+        );
     }
 
     private function initializeMiddleware(): void
     {
         $this->availableMiddleware = [
-            'logging'      => 'logging',
+            'logging'       => 'logging',
             'rate_limiting' => 'rate_limiting',
-            'retry'        => 'retry',
+            'retry'         => 'retry',
         ];
     }
 
@@ -114,9 +105,10 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
                     break;
 
                 case 'rate_limiting':
-                    if ($config->rateLimiterFactory !== null) {
+                    if ($config->rateLimiter !== null) {
                         $middleware[$name] = new RateLimitingMiddleware(
-                            $config->rateLimiterFactory,
+                            $config->rateLimiter,
+                            'general',
                             $logger,
                         );
                     }

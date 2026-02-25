@@ -69,25 +69,6 @@ class MarketplaceHttpClientFactoryTest extends TestCase
         $this->assertInstanceOf(ClientInterface::class, $client);
     }
 
-    public function testCreateRateLimiterFactory(): void
-    {
-        $rateLimiterFactory = $this->factory->createRateLimiterFactory('generic');
-
-        $this->assertNotNull($rateLimiterFactory);
-    }
-
-    public function testCreateRateLimiterFactoryWithCustomConfig(): void
-    {
-        $customConfig = [
-            'limit' => 50,
-            'rate'  => ['interval' => '1 minute', 'amount' => 50],
-        ];
-
-        $rateLimiterFactory = $this->factory->createRateLimiterFactory('custom', $customConfig);
-
-        $this->assertNotNull($rateLimiterFactory);
-    }
-
     public function testGetAvailableMiddleware(): void
     {
         $middleware = $this->factory->getAvailableMiddleware();

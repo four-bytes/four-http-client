@@ -54,7 +54,7 @@ class OAuth1aProvider implements AuthProviderInterface
         $parsedUrl = parse_url($url);
         $baseUrl = ($parsedUrl['scheme'] ?? 'https') . '://' . 
                   ($parsedUrl['host'] ?? '') . 
-                  ($parsedUrl['port'] ? ':' . $parsedUrl['port'] : '') . 
+                  (($port = $parsedUrl['port'] ?? null) ? ':' . $port : '') . 
                   ($parsedUrl['path'] ?? '');
 
         // Combine all parameters (OAuth + query params)

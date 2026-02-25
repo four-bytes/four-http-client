@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Four\Http\Middleware;
 
 use Four\Http\Authentication\OAuth1aProvider;
+use Four\Http\Transport\HttpResponseInterface;
+use Four\Http\Transport\HttpTransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
-use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 
 /**
  * Middleware that adds OAuth 1.0a authentication to requests
@@ -24,9 +23,9 @@ class OAuth1aMiddleware implements MiddlewareInterface
         private readonly LoggerInterface $logger = new NullLogger()
     ) {}
 
-    public function wrap(HttpClientInterface $client): HttpClientInterface
+    public function wrap(HttpTransportInterface $transport): HttpTransportInterface
     {
-        return new OAuth1aHttpClient($client, $this->authProvider, $this->logger);
+        return new OAuth1aHttpTransport($transport, $this->authProvider, $this->logger);
     }
 
     public function getName(): string
@@ -41,17 +40,17 @@ class OAuth1aMiddleware implements MiddlewareInterface
 }
 
 /**
- * HTTP Client decorator that adds OAuth 1.0a authentication
+ * HTTP Transport decorator that adds OAuth 1.0a authentication
  */
-class OAuth1aHttpClient implements HttpClientInterface
+class OAuth1aHttpTransport implements HttpTransportInterface
 {
     public function __construct(
-        private readonly HttpClientInterface $client,
+        private readonly HttpTransportInterface $transport,
         private readonly OAuth1aProvider $authProvider,
         private readonly LoggerInterface $logger
     ) {}
 
-    public function request(string $method, string $url, array $options = []): ResponseInterface
+    public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         if (!$this->authProvider->isValid()) {
             throw new \RuntimeException('OAuth 1.0a provider is not properly configured');
@@ -59,7 +58,7 @@ class OAuth1aHttpClient implements HttpClientInterface
 
         // Extract query parameters from options for signature calculation
         $queryParams = $options['query'] ?? [];
-        
+
         // Get OAuth 1.0a authorization header for this specific request
         $oauthHeaders = $this->authProvider->getAuthHeadersForRequest(
             $method,
@@ -77,40 +76,35 @@ class OAuth1aHttpClient implements HttpClientInterface
         $this->logger->debug('Adding OAuth 1.0a authentication', [
             'method' => $method,
             'url' => $this->sanitizeUrl($url),
-            'has_oauth_header' => isset($oauthHeaders['Authorization'])
+            'has_oauth_header' => isset($oauthHeaders['Authorization']),
         ]);
 
         try {
-            $response = $this->client->request($method, $url, $options);
-            
+            $response = $this->transport->request($method, $url, $options);
+
             $this->logger->debug('OAuth 1.0a request completed', [
                 'method' => $method,
                 'url' => $this->sanitizeUrl($url),
-                'status_code' => $response->getStatusCode()
+                'status_code' => $response->getStatusCode(),
             ]);
-            
+
             return $response;
-            
+
         } catch (\Exception $e) {
             $this->logger->error('OAuth 1.0a request failed', [
                 'method' => $method,
                 'url' => $this->sanitizeUrl($url),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             throw $e;
         }
-    }
-
-    public function stream($responses, ?float $timeout = null): ResponseStreamInterface
-    {
-        return $this->client->stream($responses, $timeout);
     }
 
     public function withOptions(array $options): static
     {
         return new static(
-            $this->client->withOptions($options),
+            $this->transport->withOptions($options),
             $this->authProvider,
             $this->logger
         );
@@ -122,21 +116,21 @@ class OAuth1aHttpClient implements HttpClientInterface
     private function sanitizeUrl(string $url): string
     {
         $parsed = parse_url($url);
-        
+
         if ($parsed === false) {
             return $url;
         }
-        
+
         $sanitized = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? 'unknown');
-        
+
         if (isset($parsed['port'])) {
             $sanitized .= ':' . $parsed['port'];
         }
-        
+
         if (isset($parsed['path'])) {
             $sanitized .= $parsed['path'];
         }
-        
+
         // Exclude query parameters to avoid exposing sensitive data
         return $sanitized;
     }
