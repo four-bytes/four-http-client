@@ -67,8 +67,8 @@
     "scripts": {
         "test": "phpunit",
         "test-coverage": "phpunit --coverage-html coverage",
-        "phpstan": "phpstan analyse src tests --level 8",
-        "phpstan-baseline": "phpstan analyse src tests --level 8 --generate-baseline",
+        "phpstan": "phpstan analyse src",
+        "phpstan-baseline": "phpstan analyse src --generate-baseline",
         "quality": [
             "@phpstan",
             "@test"
@@ -76,7 +76,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "2.0-dev"
+            "dev-main": "3.0-dev"
         }
     }
 }
