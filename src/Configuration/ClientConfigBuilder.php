@@ -6,7 +6,6 @@ namespace Four\Http\Configuration;
 
 use Four\Http\Authentication\AuthProviderInterface;
 use Four\RateLimit\RateLimiterInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -28,7 +27,6 @@ class ClientConfigBuilder
     private ?AuthProviderInterface $authProvider = null;
     private ?RateLimiterInterface $rateLimiter = null;
     private ?LoggerInterface $logger = null;
-    private ?CacheItemPoolInterface $cache = null;
     private ?RetryConfig $retryConfig = null;
     private float $timeout = 30.0;
     private int $maxRedirects = 3;
@@ -142,23 +140,6 @@ class ClientConfigBuilder
     }
 
     /**
-     * Enable caching middleware
-     */
-    public function withCaching(?CacheItemPoolInterface $cache = null): self
-    {
-        $this->cache = $cache;
-        return $this->withMiddleware('caching');
-    }
-
-    /**
-     * Enable performance monitoring middleware
-     */
-    public function withPerformanceMonitoring(): self
-    {
-        return $this->withMiddleware('performance');
-    }
-
-    /**
      * Set request timeout
      */
     public function withTimeout(float $timeout): self
@@ -230,80 +211,6 @@ class ClientConfigBuilder
     }
 
     /**
-     * Configure for Amazon SP-API
-     */
-    public function forAmazon(): self
-    {
-        return $this
-            ->withHeader('Accept', 'application/json')
-            ->withHeader('Content-Type', 'application/json')
-            ->withUserAgent('Four-MarketplaceHttp/1.0 (Amazon SP-API)')
-            ->withTimeout(30.0)
-            ->withMiddleware(['logging', 'rate_limiting', 'retry']);
-    }
-
-    /**
-     * Configure for eBay API
-     */
-    public function forEbay(): self
-    {
-        return $this
-            ->withHeader('Accept', 'application/json')
-            ->withHeader('Content-Type', 'application/json')
-            ->withUserAgent('Four-MarketplaceHttp/1.0 (eBay API)')
-            ->withTimeout(25.0)
-            ->withMiddleware(['logging', 'rate_limiting', 'retry']);
-    }
-
-    /**
-     * Configure for Discogs API
-     */
-    public function forDiscogs(): self
-    {
-        return $this
-            ->withHeader('Accept', 'application/vnd.discogs.v2.discogs+json')
-            ->withUserAgent('Four-MarketplaceHttp/1.0 +https://4bytes.de')
-            ->withTimeout(15.0)
-            ->withMiddleware(['logging', 'rate_limiting', 'oauth_1a']);
-    }
-
-    /**
-     * Configure for Bandcamp API
-     */
-    public function forBandcamp(): self
-    {
-        return $this
-            ->withHeader('Accept', 'application/json')
-            ->withUserAgent('Mozilla/5.0 (compatible; Four-MarketplaceHttp/1.0)')
-            ->withTimeout(15.0)
-            ->withMiddleware(['logging', 'rate_limiting']);
-    }
-
-    /**
-     * Configure for development/testing with lenient settings
-     */
-    public function forDevelopment(): self
-    {
-        return $this
-            ->withTimeout(60.0)
-            ->withMaxRedirects(10)
-            ->withMiddleware(['logging'])
-            ->withUserAgent('Four-MarketplaceHttp/1.0 (Development)');
-    }
-
-    /**
-     * Configure for production with strict settings
-     */
-    public function forProduction(): self
-    {
-        return $this
-            ->withTimeout(30.0)
-            ->withMaxRedirects(3)
-            ->withMiddleware(['logging', 'rate_limiting', 'retry', 'performance'])
-            ->withUserAgent('Four-MarketplaceHttp/1.0 (Production)');
-    }
-
-    /**
      * Build the final ClientConfig instance
      */
     public function build(): ClientConfig
@@ -315,7 +222,7 @@ class ClientConfigBuilder
             $this->authProvider,
             $this->rateLimiter,
             $this->logger,
-            $this->cache,
+            null,
             $this->retryConfig,
             $this->timeout,
             $this->maxRedirects,

@@ -35,6 +35,9 @@ class TransportPsr18Adapter implements ClientInterface
             $options['body'] = $body;
         }
 
+        // Die vollständige URI (inkl. Query-String) wird direkt übergeben.
+        // Query-Parameter müssen NICHT separat in $options['query'] gesetzt werden,
+        // da sie bereits in der URI enthalten sind (z.B. ?page=1&limit=10).
         $transportResponse = $this->transport->request(
             $request->getMethod(),
             (string) $request->getUri(),
