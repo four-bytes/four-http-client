@@ -55,6 +55,10 @@ readonly class ClientConfig
 
     /**
      * Create configuration with modified properties
+     *
+     * @param array<string, mixed>|null $defaultHeaders
+     * @param array<string>|null $middleware
+     * @param array<string, mixed>|null $additionalOptions
      */
     public function with(
         ?string $baseUri = null,

@@ -31,7 +31,11 @@ class CurlTransport implements TransportInterface
         }
 
         $curl = curl_init();
-        
+
+        if ($curl === false) {
+            throw new TransportException('Failed to initialize cURL handle', 0, null, $this->getType());
+        }
+
         try {
             $this->configureCurl($curl, $method, $url, $options);
             
@@ -113,10 +117,10 @@ class CurlTransport implements TransportInterface
     /**
      * Configure cURL handle for the request
      *
-     * @param resource $curl cURL handle
+     * @param \CurlHandle $curl cURL handle
      * @param array<string, mixed> $options Request options
      */
-    private function configureCurl($curl, string $method, string $url, array $options): void
+    private function configureCurl(\CurlHandle $curl, string $method, string $url, array $options): void
     {
         $curlOptions = [
             CURLOPT_URL => $url,

@@ -50,12 +50,15 @@ class RateLimitingMiddlewareTest extends TestCase
 
             public function reset(string $key): void {}
 
+            /** @return array<string, mixed> */
             public function getStatus(string $key): array { return []; }
 
+            /** @param array<string, mixed> $headers */
             public function updateFromHeaders(string $key, array $headers): void {}
 
             public function resetAll(): void {}
 
+            /** @return array<string, mixed> */
             public function getAllStatuses(): array { return []; }
 
             public function cleanup(int $maxAgeSeconds = 3600): int { return 0; }
@@ -65,6 +68,7 @@ class RateLimitingMiddlewareTest extends TestCase
                 throw new \RuntimeException('Not implemented in mock');
             }
 
+            /** @return array<string, \Four\RateLimit\RateLimitStatus> */
             public function getAllTypedStatuses(): array { return []; }
         };
     }
@@ -213,11 +217,8 @@ class RateLimitingMiddlewareTest extends TestCase
     public function testUpdateFromHeadersIsCalledAfterRequest(): void
     {
         // RateLimiter der updateFromHeaders-Aufrufe trackt
-        $callCount = 0;
-        $rateLimiter = new class($callCount) implements RateLimiterInterface {
+        $rateLimiter = new class implements RateLimiterInterface {
             public int $updateCount = 0;
-
-            public function __construct(int &$callCount) {}
 
             public function isAllowed(string $key, int $tokens = 1): bool { return true; }
 
@@ -230,8 +231,10 @@ class RateLimitingMiddlewareTest extends TestCase
 
             public function reset(string $key): void {}
 
+            /** @return array<string, mixed> */
             public function getStatus(string $key): array { return []; }
 
+            /** @param array<string, mixed> $headers */
             public function updateFromHeaders(string $key, array $headers): void
             {
                 $this->updateCount++;
@@ -239,6 +242,7 @@ class RateLimitingMiddlewareTest extends TestCase
 
             public function resetAll(): void {}
 
+            /** @return array<string, mixed> */
             public function getAllStatuses(): array { return []; }
 
             public function cleanup(int $maxAgeSeconds = 3600): int { return 0; }
@@ -248,6 +252,7 @@ class RateLimitingMiddlewareTest extends TestCase
                 throw new \RuntimeException('Not implemented in mock');
             }
 
+            /** @return array<string, \Four\RateLimit\RateLimitStatus> */
             public function getAllTypedStatuses(): array { return []; }
         };
 

@@ -17,7 +17,7 @@ class TokenProvider implements AuthProviderInterface
         private string $token,
         private readonly string $headerName = 'Authorization',
         private readonly string $headerPrefix = 'Bearer',
-        private readonly ?\DateTimeInterface $expiresAt = null
+        private ?\DateTimeInterface $expiresAt = null
     ) {}
 
     public function getAuthHeaders(): array
@@ -107,6 +107,8 @@ class TokenProvider implements AuthProviderInterface
 
     /**
      * Get current token (for debugging/monitoring)
+     *
+     * @return array<string, mixed>
      */
     public function getTokenInfo(): array
     {

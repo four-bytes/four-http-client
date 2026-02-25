@@ -34,13 +34,18 @@ abstract class TestCase extends BaseTestCase
     protected function createMockTransport(array $responses): HttpTransportInterface
     {
         return new class($responses) implements HttpTransportInterface {
+            /** @var array<HttpResponseInterface> */
             private array $queue;
 
+            /** @param array<HttpResponseInterface> $responses */
             public function __construct(array $responses)
             {
                 $this->queue = $responses;
             }
 
+            /**
+             * @param array<string, mixed> $options
+             */
             public function request(string $method, string $url, array $options = []): HttpResponseInterface
             {
                 if (empty($this->queue)) {
@@ -49,6 +54,9 @@ abstract class TestCase extends BaseTestCase
                 return array_shift($this->queue);
             }
 
+            /**
+             * @param array<string, mixed> $options
+             */
             public function withOptions(array $options): static
             {
                 return clone $this;
@@ -75,6 +83,9 @@ abstract class TestCase extends BaseTestCase
         $body = json_encode($data);
 
         return new class($status, $mergedHeaders, $body) implements HttpResponseInterface {
+            /**
+             * @param array<string, mixed> $headers
+             */
             public function __construct(
                 private readonly int $statusCode,
                 private readonly array $headers,
@@ -82,8 +93,16 @@ abstract class TestCase extends BaseTestCase
             ) {}
 
             public function getStatusCode(): int { return $this->statusCode; }
+
+            /**
+             * @return array<string, string|array<string>>
+             */
             public function getHeaders(bool $throw = true): array { return $this->headers; }
             public function getContent(bool $throw = true): string { return $this->content; }
+
+            /**
+             * @return array<mixed>
+             */
             public function toArray(bool $throw = true): array
             {
                 return json_decode($this->content, true) ?? [];
@@ -152,7 +171,7 @@ abstract class TestCase extends BaseTestCase
     protected function assertLogLevel(string $level): void
     {
         // NullLogger speichert keine Records — Tests die Logging prüfen müssen eigenen Logger injecten
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     /**
@@ -160,7 +179,7 @@ abstract class TestCase extends BaseTestCase
      */
     protected function assertLogMessage(string $level, string $message): void
     {
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     /**

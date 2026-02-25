@@ -51,6 +51,8 @@ class RetryMiddleware implements MiddlewareInterface
  */
 class RetryHttpTransport implements HttpTransportInterface
 {
+    use SanitizesUrl;
+
     public function __construct(
         private readonly HttpTransportInterface $transport,
         private readonly RetryConfig $retryConfig,
@@ -58,6 +60,9 @@ class RetryHttpTransport implements HttpTransportInterface
         private readonly string $marketplace
     ) {}
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         $attempt = 1;
@@ -152,8 +157,12 @@ class RetryHttpTransport implements HttpTransportInterface
         throw new \RuntimeException('Unexpected end of retry loop');
     }
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function withOptions(array $options): static
     {
+        // @phpstan-ignore new.static
         return new static(
             $this->transport->withOptions($options),
             $this->retryConfig,
@@ -218,34 +227,7 @@ class RetryHttpTransport implements HttpTransportInterface
         // Extract operation name from path
         $pathParts = explode('/', trim($path, '/'));
 
-        if (count($pathParts) > 0) {
-            return $pathParts[count($pathParts) - 1] ?: 'unknown';
-        }
-
-        return 'unknown';
+        return $pathParts[count($pathParts) - 1] ?: 'unknown';
     }
 
-    /**
-     * Remove sensitive information from URLs for logging
-     */
-    private function sanitizeUrl(string $url): string
-    {
-        $parsed = parse_url($url);
-
-        if ($parsed === false) {
-            return $url;
-        }
-
-        $sanitized = ($parsed['scheme'] ?? 'http') . '://' . ($parsed['host'] ?? 'unknown');
-
-        if (isset($parsed['port'])) {
-            $sanitized .= ':' . $parsed['port'];
-        }
-
-        if (isset($parsed['path'])) {
-            $sanitized .= $parsed['path'];
-        }
-
-        return $sanitized;
-    }
 }

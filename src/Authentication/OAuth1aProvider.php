@@ -32,6 +32,9 @@ class OAuth1aProvider implements AuthProviderInterface
 
     /**
      * Generate OAuth 1.0a authorization header for a specific request
+     *
+     * @param array<string, mixed> $queryParams
+     * @return array<string, string>
      */
     public function getAuthHeadersForRequest(
         string $method,
@@ -113,6 +116,8 @@ class OAuth1aProvider implements AuthProviderInterface
 
     /**
      * Generate OAuth 1.0a signature
+     *
+     * @param array<string, mixed> $params
      */
     private function generateSignature(string $method, string $baseUrl, array $params): string
     {
@@ -177,6 +182,8 @@ class OAuth1aProvider implements AuthProviderInterface
 
     /**
      * Get token information for debugging (without exposing secrets)
+     *
+     * @return array<string, mixed>
      */
     public function getTokenInfo(): array
     {
@@ -194,8 +201,10 @@ class OAuth1aProvider implements AuthProviderInterface
 
     /**
      * Test OAuth 1.0a signature generation with known values
-     * 
+     *
      * This method can be used for testing and validation
+     *
+     * @return array<string, mixed>
      */
     public function testSignature(): array
     {

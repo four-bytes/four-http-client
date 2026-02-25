@@ -197,6 +197,8 @@ class ClientConfigBuilder
 
     /**
      * Configure authentication using simple parameters
+     *
+     * @param array<string, mixed> $options
      */
     public function withAuth(string $type, string $credentials, array $options = []): self
     {
@@ -213,14 +215,16 @@ class ClientConfigBuilder
 
     /**
      * Configure retry logic with simple parameters
+     *
+     * @param array<int> $retryableStatusCodes
      */
     public function withRetryPolicy(int $maxAttempts, array $retryableStatusCodes = [429, 500, 502, 503, 504]): self
     {
-        $retryConfig = RetryConfig::create()
-            ->withMaxAttempts($maxAttempts)
-            ->withRetryableStatusCodes($retryableStatusCodes)
-            ->withBackoffStrategy('exponential');
-            
+        $retryConfig = new RetryConfig(
+            maxAttempts: $maxAttempts,
+            retryableStatusCodes: $retryableStatusCodes,
+        );
+
         $this->retryConfig = $retryConfig;
         return $this->withMiddleware('retry');
     }

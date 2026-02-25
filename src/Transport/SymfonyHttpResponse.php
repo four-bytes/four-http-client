@@ -15,6 +15,9 @@ class SymfonyHttpResponse implements HttpResponseInterface
         return $this->response->getStatusCode();
     }
 
+    /**
+     * @return array<string, string|array<string>>
+     */
     public function getHeaders(bool $throw = true): array
     {
         return $this->response->getHeaders($throw);
@@ -25,6 +28,9 @@ class SymfonyHttpResponse implements HttpResponseInterface
         return $this->response->getContent($throw);
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function toArray(bool $throw = true): array
     {
         return $this->response->toArray($throw);

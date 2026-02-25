@@ -7,6 +7,7 @@ namespace Four\Http\Factory;
 use Four\Http\Configuration\ClientConfig;
 use Four\Http\Middleware\LoggingMiddleware;
 use Four\Http\Middleware\MiddlewareInterface;
+use Four\Http\Middleware\OAuth1aMiddleware;
 use Four\Http\Middleware\RateLimitingMiddleware;
 use Four\Http\Middleware\RetryMiddleware;
 use Four\Http\Transport\HttpTransportInterface;
@@ -30,6 +31,7 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
 
     public function __construct(
         private readonly ?LoggerInterface $logger = null,
+        /** @phpstan-ignore property.onlyWritten */
         private readonly ?CacheItemPoolInterface $cache = null,
     ) {
         $this->initializeMiddleware();
@@ -85,6 +87,7 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
             'logging'       => 'logging',
             'rate_limiting' => 'rate_limiting',
             'retry'         => 'retry',
+            'oauth_1a'      => 'oauth_1a',
         ];
     }
 
@@ -118,6 +121,15 @@ class MarketplaceHttpClientFactory implements HttpClientFactoryInterface
                     if ($config->retryConfig !== null) {
                         $middleware[$name] = new RetryMiddleware(
                             $config->retryConfig,
+                            $logger,
+                        );
+                    }
+                    break;
+
+                case 'oauth_1a':
+                    if ($config->authProvider instanceof \Four\Http\Authentication\OAuth1aProvider) {
+                        $middleware[$name] = new OAuth1aMiddleware(
+                            $config->authProvider,
                             $logger,
                         );
                     }
