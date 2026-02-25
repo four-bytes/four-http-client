@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Authentication;
+namespace Four\Http\Authentication;
 
-use Four\MarketplaceHttp\Exception\AuthenticationException;
+use Four\Http\Exception\AuthenticationException;
 
 /**
  * OAuth 1.0a Authentication Provider
@@ -103,6 +103,12 @@ class OAuth1aProvider implements AuthProviderInterface
     public function getType(): string
     {
         return 'oauth_1a';
+    }
+
+    public function getExpiresAt(): ?\DateTimeInterface
+    {
+        // OAuth 1.0a-Tokens haben kein Ablaufdatum
+        return null;
     }
 
     /**

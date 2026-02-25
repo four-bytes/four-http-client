@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Authentication;
+namespace Four\Http\Authentication;
 
 /**
  * Interface for authentication providers
@@ -27,7 +27,7 @@ interface AuthProviderInterface
     /**
      * Refresh authentication credentials if possible
      *
-     * @throws \Four\MarketplaceHttp\Exception\AuthenticationException
+     * @throws \Four\Http\Exception\AuthenticationException
      */
     public function refresh(): void;
 

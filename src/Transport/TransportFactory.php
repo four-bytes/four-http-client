@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Transport;
+namespace Four\Http\Transport;
 
 /**
  * Factory for creating transport instances

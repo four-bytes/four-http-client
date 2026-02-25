@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Middleware;
+namespace Four\Http\Middleware;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -217,7 +217,7 @@ class LoggedResponse implements ResponseInterface
         $this->response->cancel();
     }
 
-    public function getInfo(?string $type = null)
+    public function getInfo(?string $type = null): mixed
     {
         return $this->response->getInfo($type);
     }

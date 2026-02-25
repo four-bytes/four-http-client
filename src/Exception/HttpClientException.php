@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Exception;
+namespace Four\Http\Exception;
 
 /**
  * Base exception for HTTP client operations
  *
- * All exceptions thrown by the Four\MarketplaceHttp library extend this base exception,
+ * All exceptions thrown by the Four\Http library extend this base exception,
  * providing a consistent exception hierarchy for error handling.
  */
 class HttpClientException extends \Exception

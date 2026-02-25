@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Middleware;
+namespace Four\Http\Middleware;
 
-use Four\MarketplaceHttp\Authentication\OAuth1aProvider;
+use Four\Http\Authentication\OAuth1aProvider;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

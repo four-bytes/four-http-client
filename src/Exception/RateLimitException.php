@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Exception;
+namespace Four\Http\Exception;
 
 /**
  * Exception thrown when rate limits are exceeded

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Four\MarketplaceHttp\Middleware;
+namespace Four\Http\Middleware;
 
-use Four\MarketplaceHttp\Exception\RateLimitException;
+use Four\Http\Exception\RateLimitException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\RateLimiter\RateLimiterFactory;

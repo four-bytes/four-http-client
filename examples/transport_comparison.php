@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Four\MarketplaceHttp\Transport\TransportFactory;
-use Four\MarketplaceHttp\Transport\CurlTransport;
-use Four\MarketplaceHttp\Transport\StreamTransport;
-use Four\MarketplaceHttp\Transport\TransportException;
+use Four\Http\Transport\TransportFactory;
+use Four\Http\Transport\CurlTransport;
+use Four\Http\Transport\StreamTransport;
+use Four\Http\Transport\TransportException;
 
 /**
  * Transport Layer Comparison and Demonstration

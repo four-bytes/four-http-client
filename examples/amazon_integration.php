@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Four\MarketplaceHttp\Configuration\ClientConfig;
-use Four\MarketplaceHttp\Configuration\RetryConfig;
-use Four\MarketplaceHttp\Factory\MarketplaceHttpClientFactory;
-use Four\MarketplaceHttp\Authentication\TokenProvider;
+use Four\Http\Configuration\ClientConfig;
+use Four\Http\Configuration\RetryConfig;
+use Four\Http\Factory\MarketplaceHttpClientFactory;
+use Four\Http\Authentication\TokenProvider;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
