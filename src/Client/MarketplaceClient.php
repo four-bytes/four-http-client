@@ -154,9 +154,6 @@ abstract class MarketplaceClient
         }
 
         $this->throwForStatus($statusCode, $response);
-
-        // Unreachable — throwForStatus wirft immer
-        return [];
     }
 
     /**
@@ -195,7 +192,7 @@ abstract class MarketplaceClient
     /**
      * Normalisiert PSR-7-Header-Arrays für RateLimitException::fromHeaders().
      *
-     * @param array<string, string[]> $headers
+     * @param array<string, string|string[]> $headers
      * @return array<string, string>
      */
     private function normalizeHeaders(array $headers): array

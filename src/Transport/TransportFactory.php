@@ -146,6 +146,7 @@ class TransportFactory
      */
     public static function register(string $name, string $transportClass): void
     {
+        // @phpstan-ignore function.alreadyNarrowedType
         if (!is_subclass_of($transportClass, TransportInterface::class)) {
             throw new \InvalidArgumentException(
                 "Transport class must implement TransportInterface"

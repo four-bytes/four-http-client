@@ -48,6 +48,9 @@ class LoggingHttpTransport implements HttpTransportInterface
         private readonly string $marketplace
     ) {}
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         $startTime = microtime(true);
@@ -85,8 +88,12 @@ class LoggingHttpTransport implements HttpTransportInterface
         }
     }
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function withOptions(array $options): static
     {
+        // @phpstan-ignore new.static
         return new static(
             $this->transport->withOptions($options),
             $this->logger,
@@ -96,6 +103,8 @@ class LoggingHttpTransport implements HttpTransportInterface
 
     /**
      * Log request details
+     *
+     * @param array<string, mixed> $options
      */
     private function logRequest(string $requestId, string $method, string $url, array $options): void
     {
@@ -188,6 +197,9 @@ class LoggedResponse implements HttpResponseInterface
         return $this->response->getStatusCode();
     }
 
+    /**
+     * @return array<string, string|array<string>>
+     */
     public function getHeaders(bool $throw = true): array
     {
         $this->logResponseOnce();
@@ -200,6 +212,9 @@ class LoggedResponse implements HttpResponseInterface
         return $this->response->getContent($throw);
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function toArray(bool $throw = true): array
     {
         $this->logResponseOnce();

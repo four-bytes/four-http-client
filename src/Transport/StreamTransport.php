@@ -31,7 +31,7 @@ class StreamTransport implements TransportInterface
         $startTime = microtime(true);
 
         try {
-            $context = $this->createStreamContext($method, $options);
+            $context = $this->createStreamContext($method, $url, $options);
             
             // Capture response headers using $http_response_header
             $responseBody = file_get_contents($url, false, $context);
@@ -103,8 +103,11 @@ class StreamTransport implements TransportInterface
 
     /**
      * Create stream context for HTTP request
+     *
+     * @param array<string, mixed> $options
+     * @return resource
      */
-    private function createStreamContext(string $method, array $options): resource
+    private function createStreamContext(string $method, string $url, array $options)
     {
         $headers = $options['headers'] ?? [];
         $body = $options['body'] ?? '';
@@ -147,7 +150,7 @@ class StreamTransport implements TransportInterface
         }
 
         // SSL context options
-        if (str_starts_with(strtolower($url ?? ''), 'https://')) {
+        if (str_starts_with(strtolower($url), 'https://')) {
             $contextOptions['ssl'] = [
                 'verify_peer' => $options['verify_ssl'] ?? true,
                 'verify_peer_name' => $options['verify_ssl'] ?? true,

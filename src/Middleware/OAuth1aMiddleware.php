@@ -44,12 +44,17 @@ class OAuth1aMiddleware implements MiddlewareInterface
  */
 class OAuth1aHttpTransport implements HttpTransportInterface
 {
+    use SanitizesUrl;
+
     public function __construct(
         private readonly HttpTransportInterface $transport,
         private readonly OAuth1aProvider $authProvider,
         private readonly LoggerInterface $logger
     ) {}
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         if (!$this->authProvider->isValid()) {
@@ -101,8 +106,12 @@ class OAuth1aHttpTransport implements HttpTransportInterface
         }
     }
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function withOptions(array $options): static
     {
+        // @phpstan-ignore new.static
         return new static(
             $this->transport->withOptions($options),
             $this->authProvider,
@@ -110,28 +119,4 @@ class OAuth1aHttpTransport implements HttpTransportInterface
         );
     }
 
-    /**
-     * Remove sensitive information from URLs for logging
-     */
-    private function sanitizeUrl(string $url): string
-    {
-        $parsed = parse_url($url);
-
-        if ($parsed === false) {
-            return $url;
-        }
-
-        $sanitized = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? 'unknown');
-
-        if (isset($parsed['port'])) {
-            $sanitized .= ':' . $parsed['port'];
-        }
-
-        if (isset($parsed['path'])) {
-            $sanitized .= $parsed['path'];
-        }
-
-        // Exclude query parameters to avoid exposing sensitive data
-        return $sanitized;
-    }
 }

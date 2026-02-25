@@ -20,14 +20,17 @@ class OAuthProvider implements AuthProviderInterface
     private ?string $accessToken = null;
     private ?\DateTimeInterface $expiresAt = null;
 
+    /**
+     * @param array<string> $scopes
+     */
     public function __construct(
         private readonly string $clientId,
         private readonly string $clientSecret,
         private readonly string $tokenEndpoint,
-        private readonly ?string $refreshToken = null,
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
+        private readonly ?string $refreshToken = null,
         private readonly array $scopes = [],
         private readonly string $oauthVersion = '2.0'
     ) {}
@@ -148,23 +151,26 @@ class OAuthProvider implements AuthProviderInterface
     /**
      * Create provider for Amazon SP-API LWA OAuth
      */
+    /**
+     * @param array<string> $scopes
+     */
     public static function amazon(
         string $clientId,
         string $clientSecret,
-        ?string $refreshToken = null,
         ClientInterface $httpClient,
         RequestFactoryInterface $requestFactory,
         StreamFactoryInterface $streamFactory,
+        ?string $refreshToken = null,
         array $scopes = []
     ): self {
         return new self(
             $clientId,
             $clientSecret,
             'https://api.amazon.com/auth/o2/token',
-            $refreshToken,
             $httpClient,
             $requestFactory,
             $streamFactory,
+            $refreshToken,
             $scopes
         );
     }
@@ -172,13 +178,16 @@ class OAuthProvider implements AuthProviderInterface
     /**
      * Create provider for eBay OAuth
      */
+    /**
+     * @param array<string> $scopes
+     */
     public static function ebay(
         string $clientId,
         string $clientSecret,
-        ?string $refreshToken = null,
         ClientInterface $httpClient,
         RequestFactoryInterface $requestFactory,
         StreamFactoryInterface $streamFactory,
+        ?string $refreshToken = null,
         array $scopes = [],
         bool $sandbox = false
     ): self {
@@ -190,16 +199,18 @@ class OAuthProvider implements AuthProviderInterface
             $clientId,
             $clientSecret,
             $tokenEndpoint,
-            $refreshToken,
             $httpClient,
             $requestFactory,
             $streamFactory,
+            $refreshToken,
             $scopes
         );
     }
 
     /**
      * Get token information for debugging
+     *
+     * @return array<string, mixed>
      */
     public function getTokenInfo(): array
     {

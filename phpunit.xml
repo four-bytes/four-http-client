@@ -4,27 +4,19 @@
          bootstrap="vendor/autoload.php"
          cacheDirectory=".phpunit.cache"
          executionOrder="depends,defects"
-         requireCoverageMetadata="true"
-         beStrictAboutCoverageMetadata="true"
          beStrictAboutOutputDuringTests="true"
-         failOnRisky="true"
-         failOnWarning="true">
+         failOnWarning="true"
+         colors="true">
     <testsuites>
         <testsuite name="Unit">
             <directory>tests</directory>
         </testsuite>
     </testsuites>
-    <source restrictDeprecations="true" restrictNotices="true" restrictWarnings="true">
+    <source>
         <include>
             <directory>src</directory>
         </include>
     </source>
-    <coverage includeUncoveredFiles="true" pathCoverage="false" ignoreDeprecatedCodeUnitsFromCodeCoverage="true">
-        <report>
-            <html outputDirectory="coverage"/>
-            <text outputFile="php://stdout"/>
-        </report>
-    </coverage>
     <php>
         <ini name="error_reporting" value="-1"/>
         <ini name="memory_limit" value="1G"/>

@@ -52,6 +52,9 @@ class RateLimitingTransport implements HttpTransportInterface
         private readonly LoggerInterface $logger,
     ) {}
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         $this->rateLimiter->waitForAllowed($this->key);
@@ -69,8 +72,12 @@ class RateLimitingTransport implements HttpTransportInterface
         return $response;
     }
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function withOptions(array $options): static
     {
+        // @phpstan-ignore new.static
         return new static($this->transport->withOptions($options), $this->rateLimiter, $this->key, $this->logger);
     }
 }

@@ -8,282 +8,110 @@ use Four\Http\Configuration\ClientConfig;
 use Four\Http\Configuration\RetryConfig;
 use Four\Http\Factory\MarketplaceHttpClientFactory;
 use Four\Http\Authentication\TokenProvider;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\NullLogger;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
  * Amazon SP-API Integration Example
  *
- * This example demonstrates how to integrate with Amazon SP-API using
- * the four-marketplace-http library with proper authentication,
- * rate limiting, and error handling.
+ * Demonstrates:
+ * - TokenProvider for LWA authentication
+ * - ClientConfig with forAmazon() preset
+ * - Rate limiting and retry configuration
+ * - Marketplace-specific headers
  */
 
-echo "Amazon SP-API Integration Example\n";
-echo "=================================\n\n";
+echo "Four HTTP Client - Amazon SP-API Integration\n";
+echo "============================================\n\n";
 
-// Create logger and cache
 $logger = new NullLogger();
-$cache = new ArrayAdapter();
+$factory = new MarketplaceHttpClientFactory($logger);
 
-// Create factory with dependencies
-$factory = new MarketplaceHttpClientFactory($logger, $cache);
+// Example 1: Simple token authentication
+echo "1. Simple LWA token authentication:\n";
 
-// Example 1: Basic Amazon SP-API configuration
-echo "1. Creating Amazon SP-API client configuration:\n";
+$authProvider = TokenProvider::amazonLwa('your-lwa-access-token');
 
-try {
-    // Create Amazon-specific rate limiter
-    $amazonRateLimiter = $factory->createRateLimiterFactory('amazon', [
-        'limit' => 20,
-        'rate' => ['interval' => '1 second', 'amount' => 20]
-    ]);
-    
-    // Create authentication provider
-    $authProvider = new TokenProvider('Bearer', 'your-lwa-access-token-here');
-    
-    // Create retry configuration for Amazon
-    $retryConfig = RetryConfig::forMarketplace('amazon')
-        ->withMaxAttempts(3)
-        ->withRetryableStatusCodes([429, 500, 502, 503, 504])
-        ->withBackoffStrategy('exponential')
-        ->withBaseDelay(1000); // 1 second base delay
-    
-    // Build the client configuration
-    $amazonConfig = ClientConfig::create('https://sellingpartnerapi-eu.amazon.com')
-        ->withAuthProvider($authProvider)
-        ->withRateLimiterFactory($amazonRateLimiter)
-        ->withRetryConfig($retryConfig)
-        ->withLogger($logger)
-        ->withCache($cache)
-        ->withHeaders([
-            'x-amz-access-token' => 'your-access-token',
-            'x-amzn-marketplace-id' => 'A1PA6795UKMFR9', // Germany
-            'Accept' => 'application/json'
-        ])
-        ->withMiddleware(['logging', 'rate_limiting', 'retry'])
-        ->withTimeout(30.0)
-        ->build();
-    
-    // Create the Amazon client
-    $amazonClient = $factory->createAmazonClient($amazonConfig);
-    
-    echo "   ✓ Amazon SP-API client created successfully\n";
-    echo "   Rate limiter: " . get_class($amazonRateLimiter) . "\n";
-    echo "   Middleware: " . implode(', ', $amazonConfig->middleware) . "\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Failed to create Amazon client: {$e->getMessage()}\n\n";
-    exit(1);
-}
+$config = ClientConfig::create('https://sellingpartnerapi-eu.amazon.com')
+    ->forAmazon()
+    ->withAuthentication($authProvider)
+    ->withHeaders([
+        'x-amzn-marketplace-id' => 'A1PA6795UKMFR9'  // Germany
+    ])
+    ->build();
 
-// Example 2: Fetching orders from Amazon SP-API
-echo "2. Fetching orders (mock example):\n";
+$client = $factory->create($config);
 
-try {
-    // Mock the orders endpoint call
-    echo "   Making request to /orders/v0/orders...\n";
-    
-    // In a real implementation, you would make this call:
-    /*
-    $response = $amazonClient->request('GET', '/orders/v0/orders', [
-        'query' => [
-            'MarketplaceIds' => 'A1PA6795UKMFR9',
-            'CreatedAfter' => (new DateTime('-7 days'))->format('c'),
-            'OrderStatuses' => 'Unshipped'
-        ]
-    ]);
-    
-    $ordersData = json_decode($response->getContent(), true);
-    echo "   ✓ Orders fetched: " . count($ordersData['payload']['Orders'] ?? []) . "\n";
-    */
-    
-    echo "   ✓ Mock request would be rate-limited and retried if needed\n";
-    echo "   ✓ All requests are logged automatically\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Orders request failed: {$e->getMessage()}\n\n";
-}
+echo "   Base URI: {$config->baseUri}\n";
+echo "   Timeout: {$config->timeout}s\n";
+echo "   Middleware: " . implode(', ', $config->middleware) . "\n\n";
 
-// Example 3: Inventory updates with feed API
-echo "3. Inventory updates using Feeds API (mock example):\n";
+// Example 2: OAuth 2.0 setup (requires PSR-18 client)
+echo "2. OAuth 2.0 with token refresh:\n";
 
-try {
-    echo "   Preparing inventory feed...\n";
-    
-    // Mock inventory data
-    $inventoryData = [
-        [
-            'sku' => 'TEST-SKU-001',
-            'quantity' => 10,
-            'price' => '19.99',
-            'currency' => 'EUR'
-        ],
-        [
-            'sku' => 'TEST-SKU-002',
-            'quantity' => 5,
-            'price' => '29.99',
-            'currency' => 'EUR'
-        ]
-    ];
-    
-    echo "   Inventory items to update: " . count($inventoryData) . "\n";
-    
-    // Mock feed creation
-    echo "   Creating feed document...\n";
-    /*
-    $feedResponse = $amazonClient->request('POST', '/feeds/2021-06-30/documents', [
-        'json' => [
-            'contentType' => 'application/json'
-        ]
-    ]);
-    
-    $feedDocument = json_decode($feedResponse->getContent(), true);
-    $feedDocumentId = $feedDocument['feedDocumentId'];
-    $uploadUrl = $feedDocument['url'];
-    
-    // Upload inventory data
-    $uploadResponse = $amazonClient->request('PUT', $uploadUrl, [
-        'body' => json_encode($inventoryData),
-        'headers' => [
-            'Content-Type' => 'application/json'
-        ]
-    ]);
-    
-    // Create the actual feed
-    $feedCreateResponse = $amazonClient->request('POST', '/feeds/2021-06-30/feeds', [
-        'json' => [
-            'feedType' => 'POST_INVENTORY_AVAILABILITY_DATA',
-            'marketplaceIds' => ['A1PA6795UKMFR9'],
-            'inputFeedDocumentId' => $feedDocumentId
-        ]
-    ]);
-    
-    $feedData = json_decode($feedCreateResponse->getContent(), true);
-    echo "   ✓ Feed created with ID: {$feedData['feedId']}\n";
-    */
-    
-    echo "   ✓ Mock feed would be created and uploaded with rate limiting\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Feed creation failed: {$e->getMessage()}\n\n";
-}
+echo "   // OAuthProvider requires PSR-18 client:\n";
+echo "   \$oauthProvider = OAuthProvider::amazon(\n";
+echo "       clientId: 'your-client-id',\n";
+echo "       clientSecret: 'your-client-secret',\n";
+echo "       httpClient: \$psr18Client,    // PSR-18 ClientInterface\n";
+echo "       requestFactory: \$requestFactory,\n";
+echo "       streamFactory: \$streamFactory,\n";
+echo "       refreshToken: 'your-refresh-token'\n";
+echo "   );\n\n";
 
-// Example 4: Multi-marketplace support
-echo "4. Multi-marketplace configuration:\n";
+// Example 3: Marketplace presets
+echo "3. Marketplace configurations:\n";
 
 $marketplaces = [
-    'DE' => [
-        'marketplace_id' => 'A1PA6795UKMFR9',
-        'endpoint' => 'https://sellingpartnerapi-eu.amazon.com',
-        'currency' => 'EUR'
-    ],
-    'UK' => [
-        'marketplace_id' => 'A1F83G8C2ARO7P',
-        'endpoint' => 'https://sellingpartnerapi-eu.amazon.com',
-        'currency' => 'GBP'
-    ],
-    'FR' => [
-        'marketplace_id' => 'A13V1IB3VIYZZH',
-        'endpoint' => 'https://sellingpartnerapi-eu.amazon.com',
-        'currency' => 'EUR'
-    ]
+    'DE' => ['id' => 'A1PA6795UKMFR9', 'endpoint' => 'https://sellingpartnerapi-eu.amazon.com'],
+    'UK' => ['id' => 'A1F83G8C2ARO7P', 'endpoint' => 'https://sellingpartnerapi-eu.amazon.com'],
+    'FR' => ['id' => 'A13V1IB3VIYZZH', 'endpoint' => 'https://sellingpartnerapi-eu.amazon.com'],
+    'US' => ['id' => 'ATVPDKIKX0DER', 'endpoint' => 'https://sellingpartnerapi-us.amazon.com'],
 ];
 
-foreach ($marketplaces as $country => $marketplaceConfig) {
-    try {
-        echo "   Creating client for {$country} marketplace:\n";
-        
-        $countryConfig = ClientConfig::create($marketplaceConfig['endpoint'])
-            ->withAuthProvider($authProvider)
-            ->withRateLimiterFactory($amazonRateLimiter)
-            ->withHeaders([
-                'x-amz-access-token' => 'your-access-token',
-                'x-amzn-marketplace-id' => $marketplaceConfig['marketplace_id']
-            ])
-            ->withMiddleware(['logging', 'rate_limiting', 'retry'])
-            ->build();
-        
-        $countryClient = $factory->createAmazonClient($countryConfig);
-        
-        echo "     ✓ {$country} client ready (Currency: {$marketplaceConfig['currency']})\n";
-        
-    } catch (Exception $e) {
-        echo "     ✗ Failed to create {$country} client: {$e->getMessage()}\n";
-    }
+foreach ($marketplaces as $country => $info) {
+    $config = ClientConfig::create($info['endpoint'])
+        ->forAmazon()
+        ->withAuthentication($authProvider)
+        ->withHeaders(['x-amzn-marketplace-id' => $info['id']])
+        ->build();
+    
+    echo "   {$country}: marketplace-id={$info['id']}, timeout={$config->timeout}s\n";
 }
 
 echo "\n";
 
-// Example 5: Rate limit handling demonstration
-echo "5. Rate limit handling:\n";
+// Example 4: Retry configuration
+echo "4. Retry configuration for Amazon:\n";
 
-try {
-    echo "   Demonstrating rate limit behavior...\n";
-    
-    // The rate limiter is configured to allow 20 requests per second
-    echo "   Rate limit: 20 requests per second\n";
-    echo "   Making rapid requests to test rate limiting...\n";
-    
-    $startTime = microtime(true);
-    
-    // Simulate multiple rapid requests
-    for ($i = 1; $i <= 5; $i++) {
-        $requestStart = microtime(true);
-        
-        // In a real scenario, this would make an actual request
-        echo "   Request {$i}: ";
-        
-        try {
-            // Mock request that would be rate limited
-            usleep(50000); // Simulate 50ms API response time
-            $requestTime = round((microtime(true) - $requestStart) * 1000, 2);
-            echo "✓ completed in {$requestTime}ms\n";
-            
-        } catch (Exception $e) {
-            echo "✗ failed: {$e->getMessage()}\n";
-        }
-    }
-    
-    $totalTime = round((microtime(true) - $startTime) * 1000, 2);
-    echo "   Total time for 5 requests: {$totalTime}ms\n";
-    echo "   ✓ Rate limiting would ensure compliance with API limits\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Rate limit demonstration failed: {$e->getMessage()}\n\n";
-}
+$retryConfig = RetryConfig::forMarketplace('amazon');
+echo "   Max attempts: {$retryConfig->maxAttempts}\n";
+echo "   Initial delay: {$retryConfig->initialDelay}s\n";
+echo "   Multiplier: {$retryConfig->multiplier}\n";
+echo "   Max delay: {$retryConfig->maxDelay}s\n";
+echo "   Retryable codes: " . implode(', ', $retryConfig->retryableStatusCodes) . "\n\n";
 
-// Example 6: Error handling and retries
-echo "6. Error handling and retry logic:\n";
+// Example 5: Error handling
+echo "5. Error handling:\n";
+echo "   401 (Unauthorized): AuthenticationException - refresh LWA token\n";
+echo "   429 (Too Many Requests): RateLimitException - wait and retry\n";
+echo "   500/502/503/504: RetryableException - exponential backoff\n\n";
 
-try {
-    echo "   Demonstrating retry behavior for transient errors...\n";
-    
-    // Mock scenarios that would trigger retries
-    $retryScenarios = [
-        ['status' => 429, 'error' => 'Rate limit exceeded'],
-        ['status' => 500, 'error' => 'Internal server error'],
-        ['status' => 503, 'error' => 'Service unavailable']
-    ];
-    
-    foreach ($retryScenarios as $scenario) {
-        echo "   Scenario: HTTP {$scenario['status']} ({$scenario['error']})\n";
-        echo "     ✓ Would retry up to 3 times with exponential backoff\n";
-        echo "     ✓ Backoff: 1s, 2s, 4s between attempts\n";
-    }
-    
-    echo "   ✓ Retry logic ensures reliable API communication\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Error handling demonstration failed: {$e->getMessage()}\n\n";
-}
+// Example 6: Making SP-API requests (mock)
+echo "6. Making SP-API requests (example):\n";
 
-echo str_repeat("=", 50) . "\n";
-echo "Amazon SP-API integration examples completed!\n";
-echo "The library provides comprehensive support for:\n";
-echo "• Authentication with LWA tokens\n";
-echo "• Intelligent rate limiting per API operation\n";
-echo "• Automatic retries with exponential backoff\n";
-echo "• Multi-marketplace support\n";
-echo "• Comprehensive logging and monitoring\n";
-echo "• Feed API support for bulk operations\n";
+echo "   // Setup request using PSR-17\n";
+echo "   \$uriFactory = \$psr17Factory->createUri(...);\n";
+echo "   \$request = \$requestFactory->createRequest('GET', \$uri);\n\n";
+
+echo "   // Send request via PSR-18\n";
+echo "   \$response = \$client->sendRequest(\$request);\n\n";
+
+echo "   // Orders API: GET /orders/v0/orders\n";
+echo "   // Feeds API: POST /feeds/2021-06-30/feeds\n\n";
+
+echo str_repeat('=', 45) . "\n";
+echo "Amazon SP-API examples completed.\n";
+echo "See Amazon SP-API documentation for endpoint details.\n";

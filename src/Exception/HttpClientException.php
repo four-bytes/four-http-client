@@ -48,6 +48,7 @@ class HttpClientException extends \Exception
         ?\Throwable $previous = null,
         ?string $operation = null
     ): static {
+        // @phpstan-ignore new.static
         return new static($message, $code, $previous, $marketplace, $operation);
     }
 }

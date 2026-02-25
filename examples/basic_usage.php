@@ -5,177 +5,152 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Four\Http\Configuration\ClientConfig;
+use Four\Http\Configuration\RetryConfig;
 use Four\Http\Factory\MarketplaceHttpClientFactory;
+use Four\Http\Authentication\TokenProvider;
+use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Basic usage example for the four-marketplace-http library
+ * Basic usage example for four-http-client
  *
- * This example demonstrates how to create HTTP clients for different marketplaces
- * with basic configuration and make API requests.
+ * Demonstrates:
+ * - Factory creation
+ * - ClientConfig with Builder
+ * - PSR-18 client creation
+ * - Request execution via PSR-18
  */
 
-// Create a logger (use your preferred logger)
-$logger = new NullLogger();
+// Get PSR-17/PSR-18 factories via discovery
+$requestFactory = \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
+$streamFactory = \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
+$uriFactory = \Http\Discovery\Psr17FactoryDiscovery::findUriFactory();
 
-// Create the factory
+echo "Four HTTP Client - Basic Usage\n";
+echo "=============================\n\n";
+
+// Create factory (optionally with logger and cache)
+$logger = new NullLogger();
 $factory = new MarketplaceHttpClientFactory($logger);
 
-echo "Four Marketplace HTTP Client - Basic Usage Examples\n";
-echo "==================================================\n\n";
+// Example 1: Minimal client
+echo "1. Minimal client:\n";
 
-// Example 1: Creating a basic client configuration
-echo "1. Creating basic client configuration:\n";
+$config = ClientConfig::create('https://httpbin.org')
+    ->withTimeout(10.0)
+    ->build();
+
+$client = $factory->create($config);
+
+echo "   Base URI: {$config->baseUri}\n";
+echo "   Timeout: {$config->timeout}s\n\n";
+
+// Example 2: Client with authentication
+echo "2. Client with bearer token:\n";
+
+$authProvider = TokenProvider::bearer('my-secret-token');
+
+$config = ClientConfig::create('https://api.example.com')
+    ->withAuthentication($authProvider)
+    ->withTimeout(30.0)
+    ->withLogging($logger)
+    ->build();
+
+$client = $factory->create($config);
+echo "   Authentication: {$authProvider->getType()}\n";
+echo "   Middleware: " . implode(', ', $config->middleware) . "\n\n";
+
+// Example 3: Simple auth helper
+echo "3. Simple auth (withAuth helper):\n";
+
+$config = ClientConfig::create('https://api.example.com')
+    ->withAuth('bearer', 'token-value')
+    ->withAuth('api_key', 'api-key-value', ['header' => 'X-API-Key'])
+    ->build();
+
+echo "   Headers include Authorization: " . (isset($config->defaultHeaders['Authorization']) ? 'yes' : 'no') . "\n\n";
+
+// Example 4: Retry configuration
+echo "4. Retry configuration:\n";
+
+$retryConfig = RetryConfig::default();
+echo "   Default: {$retryConfig->maxAttempts} attempts, initial delay {$retryConfig->initialDelay}s\n";
+
+$retryConfig = RetryConfig::conservative();
+echo "   Conservative: {$retryConfig->maxAttempts} attempts, initial delay {$retryConfig->initialDelay}s\n";
+
+$retryConfig = RetryConfig::aggressive();
+echo "   Aggressive: {$retryConfig->maxAttempts} attempts, initial delay {$retryConfig->initialDelay}s\n";
+
+$retryConfig = RetryConfig::forMarketplace('amazon');
+echo "   Amazon: {$retryConfig->maxAttempts} attempts, max delay {$retryConfig->maxDelay}s\n\n";
+
+// Example 5: Middleware via builder methods
+echo "5. Middleware via builder:\n";
+
+$config = ClientConfig::create('https://api.example.com')
+    ->withLogging($logger)
+    ->withRetries(RetryConfig::default())
+    ->build();
+
+echo "   Enabled middleware: " . implode(', ', $config->middleware) . "\n\n";
+
+// Example 6: Custom headers
+echo "6. Custom headers:\n";
 
 $config = ClientConfig::create('https://api.example.com')
     ->withHeaders([
         'Accept' => 'application/json',
-        'User-Agent' => 'MyApp/1.0'
+        'X-Custom-Header' => 'custom-value'
     ])
-    ->withTimeout(30.0)
-    ->withMiddleware(['logging'])
+    ->withUserAgent('MyApp/1.0')
+    ->withAccept('application/vnd.api+json')
+    ->withContentType('application/json')
     ->build();
 
-echo "   Base URI: {$config->baseUri}\n";
-echo "   Timeout: {$config->timeout} seconds\n";
-echo "   Middleware: " . implode(', ', $config->middleware) . "\n\n";
-
-// Example 2: Creating an Amazon SP-API client
-echo "2. Creating Amazon SP-API client:\n";
-
-try {
-    $amazonConfig = ClientConfig::create('https://sellingpartnerapi-eu.amazon.com')
-        ->withHeaders([
-            'x-amz-access-token' => 'your-access-token-here'
-        ])
-        ->withMiddleware(['logging', 'rate_limiting', 'retry'])
-        ->withTimeout(30.0)
-        ->build();
-    
-    $amazonClient = $factory->createAmazonClient($amazonConfig);
-    echo "   ✓ Amazon client created successfully\n";
-    echo "   Client class: " . get_class($amazonClient) . "\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Failed to create Amazon client: {$e->getMessage()}\n\n";
+echo "   Headers count: " . count($config->defaultHeaders) . "\n";
+foreach ($config->defaultHeaders as $name => $value) {
+    echo "   - {$name}: {$value}\n";
 }
+echo "\n";
 
-// Example 3: Creating an eBay API client  
-echo "3. Creating eBay API client:\n";
+// Example 7: Marketplace presets
+echo "7. Marketplace presets:\n";
 
-try {
-    $ebayConfig = ClientConfig::create('https://api.ebay.com')
-        ->withHeaders([
-            'Authorization' => 'Bearer your-ebay-token-here'
-        ])
-        ->withMiddleware(['logging', 'rate_limiting'])
-        ->withTimeout(25.0)
-        ->build();
-    
-    $ebayClient = $factory->createEbayClient($ebayConfig);
-    echo "   ✓ eBay client created successfully\n";
-    echo "   Client class: " . get_class($ebayClient) . "\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Failed to create eBay client: {$e->getMessage()}\n\n";
-}
+$amazon = ClientConfig::create('https://sellingpartnerapi.amazon.com')->forAmazon()->build();
+echo "   Amazon: timeout={$amazon->timeout}s, middleware=" . implode(',', $amazon->middleware) . "\n";
 
-// Example 4: Creating a Discogs API client
-echo "4. Creating Discogs API client:\n";
+$ebay = ClientConfig::create('https://api.ebay.com')->forEbay()->build();
+echo "   eBay: timeout={$ebay->timeout}s, middleware=" . implode(',', $ebay->middleware) . "\n";
+
+$discogs = ClientConfig::create('https://api.discogs.com')->forDiscogs()->build();
+echo "   Discogs: timeout={$discogs->timeout}s, middleware=" . implode(',', $discogs->middleware) . "\n";
+
+$dev = ClientConfig::create('http://localhost:8080')->forDevelopment()->build();
+echo "   Development: timeout={$dev->timeout}s, middleware=" . implode(',', $dev->middleware) . "\n\n";
+
+// Example 8: Make actual request via PSR-18
+echo "8. Making GET request (PSR-18):\n";
 
 try {
-    $discogsConfig = ClientConfig::create('https://api.discogs.com')
-        ->withHeaders([
-            'Authorization' => 'Discogs token=your-discogs-token-here'
-        ])
-        ->withMiddleware(['logging', 'rate_limiting'])
-        ->withTimeout(15.0)
-        ->build();
+    // Create PSR-7 request
+    $uri = $uriFactory->createUri('https://httpbin.org/get?foo=bar');
+    $request = $requestFactory->createRequest('GET', $uri);
     
-    $discogsClient = $factory->createDiscogsClient($discogsConfig);
-    echo "   ✓ Discogs client created successfully\n";
-    echo "   Client class: " . get_class($discogsClient) . "\n\n";
+    // Send via PSR-18 client
+    $response = $client->sendRequest($request);
     
-} catch (Exception $e) {
-    echo "   ✗ Failed to create Discogs client: {$e->getMessage()}\n\n";
-}
-
-// Example 5: Creating a Bandcamp client
-echo "5. Creating Bandcamp client:\n";
-
-try {
-    $bandcampConfig = ClientConfig::create('https://bandcamp.com/api')
-        ->withHeaders([
-            'Authorization' => 'Bearer your-bandcamp-token-here'
-        ])
-        ->withMiddleware(['logging', 'rate_limiting'])
-        ->withTimeout(15.0)
-        ->build();
+    echo "   Status: {$response->getStatusCode()}\n";
+    echo "   Content-Type: " . ($response->getHeaderLine('content-type') ?: 'none') . "\n";
     
-    $bandcampClient = $factory->createBandcampClient($bandcampConfig);
-    echo "   ✓ Bandcamp client created successfully\n";
-    echo "   Client class: " . get_class($bandcampClient) . "\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Failed to create Bandcamp client: {$e->getMessage()}\n\n";
-}
-
-// Example 6: Using the fluent configuration builder
-echo "6. Fluent configuration example:\n";
-
-try {
-    $fluentConfig = ClientConfig::create('https://api.marketplace.com')
-        ->withAuth('bearer', 'your-token-here')
-        ->withRateLimitPolicy('token_bucket', ['limit' => 10, 'rate' => ['1 second', 10]])
-        ->withRetryPolicy(3, [500, 502, 503, 504])
-        ->withTimeout(20.0)
-        ->withUserAgent('FluentExample/1.0')
-        ->withMiddleware(['logging', 'rate_limiting', 'retry'])
-        ->build();
-    
-    $fluentClient = $factory->createClient($fluentConfig);
-    echo "   ✓ Fluent client created successfully\n";
-    echo "   Middleware count: " . count($fluentConfig->middleware) . "\n";
-    echo "   Headers count: " . count($fluentConfig->defaultHeaders) . "\n\n";
-    
-} catch (Exception $e) {
-    echo "   ✗ Failed to create fluent client: {$e->getMessage()}\n\n";
-}
-
-// Example 7: Making actual requests (mock examples)
-echo "7. Making API requests (mock examples):\n";
-
-try {
-    // Create a simple client for testing
-    $testConfig = ClientConfig::create('https://httpbin.org')
-        ->withMiddleware(['logging'])
-        ->build();
-    
-    $testClient = $factory->createClient($testConfig);
-    
-    echo "   Making GET request to /get...\n";
-    $response = $testClient->request('GET', '/get', [
-        'query' => [
-            'param1' => 'value1',
-            'param2' => 'value2'
-        ]
-    ]);
-    
-    echo "   ✓ Response status: {$response->getStatusCode()}\n";
-    echo "   ✓ Content type: " . ($response->getHeaders()['content-type'][0] ?? 'unknown') . "\n";
-    
-    // Get response content
-    $content = $response->getContent();
-    $data = json_decode($content, true);
-    
+    $data = json_decode($response->getBody()->getContents(), true);
     if ($data && isset($data['args'])) {
-        echo "   ✓ Query parameters received: " . implode(', ', array_keys($data['args'])) . "\n";
+        echo "   Query args: " . json_encode($data['args']) . "\n";
     }
     
 } catch (Exception $e) {
-    echo "   ✗ Request failed: {$e->getMessage()}\n";
+    echo "   Error: {$e->getMessage()}\n";
 }
 
-echo "\n" . str_repeat("=", 50) . "\n";
-echo "Examples completed successfully!\n";
-echo "Check the documentation for more advanced usage patterns.\n";
+echo "\n" . str_repeat('=', 40) . "\n";
+echo "Basic usage examples completed.\n";
