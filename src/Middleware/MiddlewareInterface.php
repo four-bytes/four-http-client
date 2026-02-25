@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Four\Http\Middleware;
 
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Four\Http\Transport\HttpTransportInterface;
 
 /**
  * Interface for HTTP client middleware
  *
- * Middleware components can wrap HttpClient instances to add functionality
+ * Middleware components can wrap HttpTransport instances to add functionality
  * like logging, rate limiting, caching, authentication, and monitoring.
  */
 interface MiddlewareInterface
 {
     /**
-     * Wrap an HTTP client with middleware functionality
+     * Wrap an HTTP transport with middleware functionality
      */
-    public function wrap(HttpClientInterface $client): HttpClientInterface;
+    public function wrap(HttpTransportInterface $transport): HttpTransportInterface;
 
     /**
      * Get the name of this middleware

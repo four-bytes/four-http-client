@@ -71,13 +71,13 @@ class OAuth1aProviderTest extends TestCase
         
         // Verify OAuth parameters are present
         $authHeader = $headers['Authorization'];
-        $this->assertStringContains('oauth_consumer_key=', $authHeader);
-        $this->assertStringContains('oauth_nonce=', $authHeader);
-        $this->assertStringContains('oauth_signature_method=', $authHeader);
-        $this->assertStringContains('oauth_timestamp=', $authHeader);
-        $this->assertStringContains('oauth_token=', $authHeader);
-        $this->assertStringContains('oauth_version=', $authHeader);
-        $this->assertStringContains('oauth_signature=', $authHeader);
+        $this->assertStringContainsString('oauth_consumer_key=', $authHeader);
+        $this->assertStringContainsString('oauth_nonce=', $authHeader);
+        $this->assertStringContainsString('oauth_signature_method=', $authHeader);
+        $this->assertStringContainsString('oauth_timestamp=', $authHeader);
+        $this->assertStringContainsString('oauth_token=', $authHeader);
+        $this->assertStringContainsString('oauth_version=', $authHeader);
+        $this->assertStringContainsString('oauth_signature=', $authHeader);
     }
     
     public function testGetAuthHeadersForRequestWithEmptyParams(): void
@@ -153,7 +153,7 @@ class OAuth1aProviderTest extends TestCase
         );
         
         $this->assertArrayHasKey('Authorization', $headers);
-        $this->assertStringContains('oauth_signature_method="HMAC-SHA1"', $headers['Authorization']);
+        $this->assertStringContainsString('oauth_signature_method="HMAC-SHA1"', $headers['Authorization']);
     }
     
     public function testRefreshThrowsException(): void
@@ -223,7 +223,7 @@ class OAuth1aProviderTest extends TestCase
             'https://api.example.com/test'
         );
         
-        $this->assertStringContains('oauth_signature_method="PLAINTEXT"', $headers['Authorization']);
+        $this->assertStringContainsString('oauth_signature_method="PLAINTEXT"', $headers['Authorization']);
     }
     
     public function testInvalidSignatureMethod(): void
@@ -258,7 +258,7 @@ class OAuth1aProviderTest extends TestCase
         $this->assertStringStartsWith('OAuth ', $headers['Authorization']);
         
         // Verify that the signature was generated successfully despite special characters
-        $this->assertStringContains('oauth_signature=', $headers['Authorization']);
+        $this->assertStringContainsString('oauth_signature=', $headers['Authorization']);
     }
     
     public function testComplexUrlWithPortAndPath(): void

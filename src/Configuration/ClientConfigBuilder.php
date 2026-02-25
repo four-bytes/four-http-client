@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Four\Http\Configuration;
 
 use Four\Http\Authentication\AuthProviderInterface;
+use Four\RateLimit\RateLimiterInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 /**
  * Builder class for ClientConfig
@@ -26,7 +26,7 @@ class ClientConfigBuilder
     private array $middleware = [];
     
     private ?AuthProviderInterface $authProvider = null;
-    private ?RateLimiterFactory $rateLimiterFactory = null;
+    private ?RateLimiterInterface $rateLimiter = null;
     private ?LoggerInterface $logger = null;
     private ?CacheItemPoolInterface $cache = null;
     private ?RetryConfig $retryConfig = null;
@@ -117,9 +117,9 @@ class ClientConfigBuilder
     /**
      * Enable rate limiting middleware
      */
-    public function withRateLimit(?RateLimiterFactory $rateLimiterFactory = null): self
+    public function withRateLimit(?RateLimiterInterface $rateLimiter = null): self
     {
-        $this->rateLimiterFactory = $rateLimiterFactory;
+        $this->rateLimiter = $rateLimiter;
         return $this->withMiddleware('rate_limiting');
     }
 
@@ -209,22 +209,6 @@ class ClientConfigBuilder
         };
         
         return $this;
-    }
-
-    /**
-     * Configure rate limiting with policy and parameters
-     * 
-     * @param string $policy Policy type: 'token_bucket', 'fixed_window', 'sliding_window'
-     * @param array<string, mixed> $config Rate limit configuration
-     */
-    public function withRateLimitPolicy(string $policy, array $config = []): self
-    {
-        // This would require the factory to create a rate limiter
-        // For now, just store the configuration and let the factory handle it
-        $this->additionalOptions['rate_limit_policy'] = $policy;
-        $this->additionalOptions['rate_limit_config'] = $config;
-        
-        return $this->withMiddleware('rate_limiting');
     }
 
     /**
@@ -325,7 +309,7 @@ class ClientConfigBuilder
             $this->defaultHeaders,
             $this->middleware,
             $this->authProvider,
-            $this->rateLimiterFactory,
+            $this->rateLimiter,
             $this->logger,
             $this->cache,
             $this->retryConfig,

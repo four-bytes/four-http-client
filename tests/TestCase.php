@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace Four\Http\Tests;
 
+use Four\Http\Transport\HttpResponseInterface;
+use Four\Http\Transport\HttpTransportInterface;
 use PHPUnit\Framework\TestCase as BaseTestCase;
-use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
-use Symfony\Component\HttpClient\MockHttpClient;
-use Symfony\Component\HttpClient\Response\MockResponse;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * Base test case with common utilities for HTTP client testing
@@ -28,20 +25,40 @@ abstract class TestCase extends BaseTestCase
         $this->logger = new NullLogger();
         $this->cache = new ArrayAdapter();
     }
-    
+
     /**
-     * Create a mock HTTP client with predefined responses
-     * 
-     * @param array<MockResponse> $responses
+     * Create a mock HTTP transport with predefined responses
+     *
+     * @param array<HttpResponseInterface> $responses
      */
-    protected function createMockClient(array $responses): HttpClientInterface
+    protected function createMockTransport(array $responses): HttpTransportInterface
     {
-        return new MockHttpClient($responses);
+        return new class($responses) implements HttpTransportInterface {
+            private array $queue;
+
+            public function __construct(array $responses)
+            {
+                $this->queue = $responses;
+            }
+
+            public function request(string $method, string $url, array $options = []): HttpResponseInterface
+            {
+                if (empty($this->queue)) {
+                    throw new \RuntimeException('No more mock responses available');
+                }
+                return array_shift($this->queue);
+            }
+
+            public function withOptions(array $options): static
+            {
+                return clone $this;
+            }
+        };
     }
-    
+
     /**
-     * Create a mock response with JSON content
-     * 
+     * Create a mock HTTP response with JSON content
+     *
      * @param array<string, mixed> $data
      * @param array<string, mixed> $headers
      */
@@ -49,19 +66,31 @@ abstract class TestCase extends BaseTestCase
         array $data,
         int $status = 200,
         array $headers = []
-    ): MockResponse {
+    ): HttpResponseInterface {
         $defaultHeaders = [
-            'Content-Type' => 'application/json',
+            'content-type' => ['application/json'],
         ];
-        
-        $headers = array_merge($defaultHeaders, $headers);
-        
-        return new MockResponse(json_encode($data), [
-            'http_code' => $status,
-            'response_headers' => $headers,
-        ]);
+
+        $mergedHeaders = array_merge($defaultHeaders, $headers);
+        $body = json_encode($data);
+
+        return new class($status, $mergedHeaders, $body) implements HttpResponseInterface {
+            public function __construct(
+                private readonly int $statusCode,
+                private readonly array $headers,
+                private readonly string $content,
+            ) {}
+
+            public function getStatusCode(): int { return $this->statusCode; }
+            public function getHeaders(bool $throw = true): array { return $this->headers; }
+            public function getContent(bool $throw = true): string { return $this->content; }
+            public function toArray(bool $throw = true): array
+            {
+                return json_decode($this->content, true) ?? [];
+            }
+        };
     }
-    
+
     /**
      * Create a mock response for rate limiting scenarios
      */
@@ -69,178 +98,54 @@ abstract class TestCase extends BaseTestCase
         string $marketplace = 'general',
         int $limit = 100,
         int $remaining = 50
-    ): MockResponse {
+    ): HttpResponseInterface {
         $headers = match ($marketplace) {
             'amazon' => [
-                'x-amzn-ratelimit-limit' => (string) $limit,
-                'x-amzn-ratelimit-remaining' => (string) $remaining,
+                'x-amzn-ratelimit-limit' => [(string) $limit],
+                'x-amzn-ratelimit-remaining' => [(string) $remaining],
             ],
             'ebay' => [
-                'x-ebay-api-analytics-daily-remaining' => (string) $remaining,
+                'x-ebay-api-analytics-daily-remaining' => [(string) $remaining],
             ],
             'discogs' => [
-                'x-discogs-ratelimit-remaining' => (string) $remaining,
+                'x-discogs-ratelimit-remaining' => [(string) $remaining],
             ],
             default => [
-                'x-ratelimit-limit' => (string) $limit,
-                'x-ratelimit-remaining' => (string) $remaining,
+                'x-ratelimit-limit' => [(string) $limit],
+                'x-ratelimit-remaining' => [(string) $remaining],
             ],
         };
-        
-        return new MockResponse('{"success": true}', [
-            'http_code' => 200,
-            'response_headers' => $headers,
-        ]);
+
+        return $this->createJsonResponse(['success' => true], 200, $headers);
     }
-    
+
     /**
      * Create a mock response for rate limit exceeded scenarios
      */
     protected function createRateExceededResponse(
         string $marketplace = 'general',
         int $retryAfter = 60
-    ): MockResponse {
+    ): HttpResponseInterface {
         $headers = [
-            'Retry-After' => (string) $retryAfter,
+            'retry-after' => [(string) $retryAfter],
         ];
-        
+
         if ($marketplace === 'amazon') {
-            $headers['x-amzn-ratelimit-limit'] = '0';
-            $headers['x-amzn-ratelimit-remaining'] = '0';
+            $headers['x-amzn-ratelimit-limit'] = ['0'];
+            $headers['x-amzn-ratelimit-remaining'] = ['0'];
         }
-        
-        return new MockResponse('{"error": "Rate limit exceeded"}', [
-            'http_code' => 429,
-            'response_headers' => $headers,
-        ]);
+
+        return $this->createJsonResponse(['error' => 'Rate limit exceeded'], 429, $headers);
     }
-    
+
     /**
      * Create a mock response for server errors
      */
-    protected function createServerErrorResponse(int $status = 500): MockResponse
+    protected function createServerErrorResponse(int $status = 500): HttpResponseInterface
     {
-        return new MockResponse('{"error": "Internal server error"}', [
-            'http_code' => $status,
-            'response_headers' => [
-                'Content-Type' => 'application/json',
-            ],
-        ]);
+        return $this->createJsonResponse(['error' => 'Internal server error'], $status);
     }
-    
-    /**
-     * Create mock Amazon SP-API responses
-     */
-    protected function createAmazonOrdersResponse(): MockResponse
-    {
-        $data = [
-            'payload' => [
-                'Orders' => [
-                    [
-                        'AmazonOrderId' => '123-TEST-ORDER-001',
-                        'PurchaseDate' => '2025-08-13T10:00:00Z',
-                        'LastUpdateDate' => '2025-08-13T10:30:00Z',
-                        'OrderStatus' => 'Unshipped',
-                        'FulfillmentChannel' => 'MFN',
-                        'OrderTotal' => [
-                            'Amount' => '39.98',
-                            'CurrencyCode' => 'EUR'
-                        ],
-                        'MarketplaceId' => 'A1PA6795UKMFR9'
-                    ]
-                ]
-            ]
-        ];
-        
-        return $this->createJsonResponse($data, 200, [
-            'x-amzn-ratelimit-limit' => '10',
-            'x-amzn-ratelimit-remaining' => '8',
-        ]);
-    }
-    
-    /**
-     * Create mock eBay inventory response
-     */
-    protected function createEbayInventoryResponse(): MockResponse
-    {
-        $data = [
-            'inventoryItems' => [
-                [
-                    'sku' => 'TEST-SKU-001',
-                    'availability' => [
-                        'shipToLocationAvailability' => [
-                            'quantity' => 10,
-                        ]
-                    ],
-                    'condition' => 'NEW',
-                ]
-            ],
-            'total' => 1,
-            'size' => 1,
-            'limit' => 25,
-        ];
-        
-        return $this->createJsonResponse($data, 200, [
-            'x-ebay-api-analytics-daily-remaining' => '4950',
-        ]);
-    }
-    
-    /**
-     * Create mock Discogs search response
-     */
-    protected function createDiscogsSearchResponse(): MockResponse
-    {
-        $data = [
-            'results' => [
-                [
-                    'id' => 12345,
-                    'title' => 'Test Artist - Test Album',
-                    'type' => 'release',
-                    'year' => '2023',
-                    'format' => ['CD'],
-                    'label' => ['Test Label'],
-                ]
-            ],
-            'pagination' => [
-                'items' => 1,
-                'page' => 1,
-                'pages' => 1,
-                'per_page' => 50,
-            ]
-        ];
-        
-        return $this->createJsonResponse($data, 200, [
-            'x-discogs-ratelimit-remaining' => '58',
-        ]);
-    }
-    
-    /**
-     * Create mock Bandcamp orders response
-     */
-    protected function createBandcampOrdersResponse(): MockResponse
-    {
-        $data = [
-            'orders' => [
-                [
-                    'id' => 'bc-order-001',
-                    'date' => '2025-08-13',
-                    'total' => '19.99',
-                    'currency' => 'EUR',
-                    'items' => [
-                        [
-                            'sku' => 'BC-001',
-                            'quantity' => 1,
-                            'price' => '19.99'
-                        ]
-                    ]
-                ]
-            ],
-            'total_count' => 1
-        ];
-        
-        return $this->createJsonResponse($data);
-    }
-    
+
     /**
      * Assert that a specific log level was recorded (NullLogger-kompatibel: no-op)
      */
@@ -275,7 +180,7 @@ abstract class TestCase extends BaseTestCase
     {
         // NullLogger hat keine Records
     }
-    
+
     /**
      * Create a temporary test file
      */
@@ -285,20 +190,16 @@ abstract class TestCase extends BaseTestCase
         if ($tempFile === false) {
             throw new \RuntimeException('Failed to create temporary file');
         }
-        
+
         if (!empty($content)) {
             file_put_contents($tempFile, $content);
         }
-        
+
         return $tempFile;
     }
-    
-    /**
-     * Clean up temporary files after test
-     */
+
     protected function tearDown(): void
     {
-        // Clean up any temporary files if needed
         parent::tearDown();
     }
 }

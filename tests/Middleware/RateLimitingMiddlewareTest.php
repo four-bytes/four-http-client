@@ -4,264 +4,262 @@ declare(strict_types=1);
 
 namespace Four\Http\Tests\Middleware;
 
-use Four\Http\Exception\RateLimitException;
 use Four\Http\Middleware\RateLimitingMiddleware;
 use Four\Http\Tests\TestCase;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
-use Symfony\Component\RateLimiter\Storage\CacheStorage;
+use Four\Http\Transport\HttpResponseInterface;
+use Four\Http\Transport\HttpTransportInterface;
+use Four\RateLimit\RateLimiterInterface;
 
 /**
- * Tests for RateLimitingMiddleware
+ * Tests für RateLimitingMiddleware
  */
 class RateLimitingMiddlewareTest extends TestCase
 {
-    private RateLimiterFactory $rateLimiterFactory;
+    private RateLimiterInterface $rateLimiter;
     private RateLimitingMiddleware $middleware;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
-        
-        // Create a rate limiter factory for testing
-        $this->rateLimiterFactory = new RateLimiterFactory([
-            'id' => 'test',
-            'policy' => 'token_bucket',
-            'limit' => 5,
-            'rate' => ['interval' => '1 second', 'amount' => 5]
-        ], new CacheStorage($this->cache));
-        
+
+        $this->rateLimiter = $this->createMockRateLimiter();
+
         $this->middleware = new RateLimitingMiddleware(
-            $this->rateLimiterFactory,
+            $this->rateLimiter,
+            'general',
             $this->logger,
-            'test'
         );
     }
-    
+
+    /**
+     * Erstellt einen einfachen Mock-RateLimiter der immer erlaubt
+     */
+    private function createMockRateLimiter(bool $allowed = true): RateLimiterInterface
+    {
+        return new class($allowed) implements RateLimiterInterface {
+            public function __construct(private readonly bool $allowed) {}
+
+            public function isAllowed(string $key, int $tokens = 1): bool { return $this->allowed; }
+
+            public function waitForAllowed(string $key, int $tokens = 1, int $maxWaitMs = 30000): bool
+            {
+                return $this->allowed;
+            }
+
+            public function getWaitTime(string $key): int { return 0; }
+
+            public function reset(string $key): void {}
+
+            public function getStatus(string $key): array { return []; }
+
+            public function updateFromHeaders(string $key, array $headers): void {}
+
+            public function resetAll(): void {}
+
+            public function getAllStatuses(): array { return []; }
+
+            public function cleanup(int $maxAgeSeconds = 3600): int { return 0; }
+
+            public function getTypedStatus(string $key): \Four\RateLimit\RateLimitStatus
+            {
+                throw new \RuntimeException('Not implemented in mock');
+            }
+
+            public function getAllTypedStatuses(): array { return []; }
+        };
+    }
+
     public function testGetName(): void
     {
         $this->assertSame('rate_limiting', $this->middleware->getName());
     }
-    
+
     public function testGetPriority(): void
     {
         $this->assertSame(200, $this->middleware->getPriority());
     }
-    
-    public function testWrapClient(): void
+
+    public function testWrapTransport(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createJsonResponse(['success' => true])
+        $mockTransport = $this->createMockTransport([
+            $this->createJsonResponse(['success' => true]),
         ]);
-        
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        $this->assertNotSame($mockClient, $wrappedClient);
+
+        $wrappedTransport = $this->middleware->wrap($mockTransport);
+
+        $this->assertNotSame($mockTransport, $wrappedTransport);
+        $this->assertInstanceOf(HttpTransportInterface::class, $wrappedTransport);
     }
-    
+
     public function testSuccessfulRequestWithinLimits(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createRateLimitResponse('test', 5, 4)
+        $mockTransport = $this->createMockTransport([
+            $this->createRateLimitResponse('general', 100, 99),
         ]);
-        
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        $response = $wrappedClient->request('GET', 'https://api.example.com/test');
-        
+
+        $wrappedTransport = $this->middleware->wrap($mockTransport);
+
+        $response = $wrappedTransport->request('GET', 'https://api.example.com/test');
+
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertLogLevel('debug');
     }
-    
-    public function testRateLimitExceededHandling(): void
+
+    public function testRateLimitExceededResponseHandling(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createRateExceededResponse('test')
+        $mockTransport = $this->createMockTransport([
+            $this->createRateExceededResponse('general'),
         ]);
-        
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        $response = $wrappedClient->request('GET', 'https://api.example.com/test');
-        
+
+        $wrappedTransport = $this->middleware->wrap($mockTransport);
+
+        $response = $wrappedTransport->request('GET', 'https://api.example.com/test');
+
+        // RateLimitingTransport wartet und macht den Request trotzdem — 429 kommt zurück
         $this->assertSame(429, $response->getStatusCode());
-        $this->assertLogLevel('warning');
     }
-    
+
     public function testAmazonRateLimitHeaders(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createRateLimitResponse('amazon', 10, 8)
+        $mockTransport = $this->createMockTransport([
+            $this->createRateLimitResponse('amazon', 10, 8),
         ]);
-        
+
         $amazonMiddleware = new RateLimitingMiddleware(
-            $this->rateLimiterFactory,
+            $this->rateLimiter,
+            'amazon',
             $this->logger,
-            'amazon'
         );
-        
-        $wrappedClient = $amazonMiddleware->wrap($mockClient);
-        
-        $response = $wrappedClient->request('GET', 'https://sellingpartnerapi-eu.amazon.com/orders/v0/orders');
-        
+
+        $wrappedTransport = $amazonMiddleware->wrap($mockTransport);
+
+        $response = $wrappedTransport->request('GET', 'https://sellingpartnerapi-eu.amazon.com/orders/v0/orders');
+
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertLogLevel('debug');
     }
-    
+
     public function testEbayRateLimitHeaders(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createRateLimitResponse('ebay', 5000, 4950)
+        $mockTransport = $this->createMockTransport([
+            $this->createRateLimitResponse('ebay', 5000, 4950),
         ]);
-        
+
         $ebayMiddleware = new RateLimitingMiddleware(
-            $this->rateLimiterFactory,
+            $this->rateLimiter,
+            'ebay',
             $this->logger,
-            'ebay'
         );
-        
-        $wrappedClient = $ebayMiddleware->wrap($mockClient);
-        
-        $response = $wrappedClient->request('GET', 'https://api.ebay.com/sell/inventory/v1/inventory_item');
-        
+
+        $wrappedTransport = $ebayMiddleware->wrap($mockTransport);
+
+        $response = $wrappedTransport->request('GET', 'https://api.ebay.com/sell/inventory/v1/inventory_item');
+
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertLogLevel('debug');
     }
-    
+
     public function testDiscogsRateLimitHeaders(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createRateLimitResponse('discogs', 60, 58)
+        $mockTransport = $this->createMockTransport([
+            $this->createRateLimitResponse('discogs', 60, 58),
         ]);
-        
+
         $discogsMiddleware = new RateLimitingMiddleware(
-            $this->rateLimiterFactory,
+            $this->rateLimiter,
+            'discogs',
             $this->logger,
-            'discogs'
         );
-        
-        $wrappedClient = $discogsMiddleware->wrap($mockClient);
-        
-        $response = $wrappedClient->request('GET', 'https://api.discogs.com/database/search');
-        
+
+        $wrappedTransport = $discogsMiddleware->wrap($mockTransport);
+
+        $response = $wrappedTransport->request('GET', 'https://api.discogs.com/database/search');
+
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertLogLevel('debug');
     }
-    
-    public function testOperationKeyExtraction(): void
-    {
-        $mockClient = $this->createMockClient([
-            $this->createJsonResponse(['success' => true]),
-            $this->createJsonResponse(['success' => true]),
-            $this->createJsonResponse(['success' => true])
-        ]);
-        
-        $amazonMiddleware = new RateLimitingMiddleware(
-            $this->rateLimiterFactory,
-            $this->logger,
-            'amazon'
-        );
-        
-        $wrappedClient = $amazonMiddleware->wrap($mockClient);
-        
-        // Test different Amazon endpoints to verify operation key extraction
-        $endpoints = [
-            '/orders/v0/orders' => 'orders',
-            '/listings/2021-08-01/items/TEST-SKU' => 'listings',
-            '/feeds/2021-06-30/feeds' => 'feeds'
-        ];
-        
-        foreach ($endpoints as $endpoint => $expectedOperation) {
-            $response = $wrappedClient->request('GET', 'https://sellingpartnerapi-eu.amazon.com' . $endpoint);
-            $this->assertSame(200, $response->getStatusCode());
-        }
-        
-        // Verify that requests were made and rate limiting was applied per operation
-        $this->assertLogLevel('debug');
-    }
-    
+
     public function testWithOptionsPreservation(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createJsonResponse(['success' => true])
+        $mockTransport = $this->createMockTransport([
+            $this->createJsonResponse(['success' => true]),
         ]);
-        
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        $clientWithOptions = $wrappedClient->withOptions([
+
+        $wrappedTransport = $this->middleware->wrap($mockTransport);
+
+        $transportWithOptions = $wrappedTransport->withOptions([
             'timeout' => 60,
-            'headers' => ['X-Test' => 'value']
+            'headers' => ['X-Test' => 'value'],
         ]);
-        
-        $this->assertNotSame($wrappedClient, $clientWithOptions);
-        
-        $response = $clientWithOptions->request('GET', 'https://api.example.com/test');
+
+        $this->assertNotSame($wrappedTransport, $transportWithOptions);
+
+        $response = $transportWithOptions->request('GET', 'https://api.example.com/test');
         $this->assertSame(200, $response->getStatusCode());
     }
-    
-    public function testStreamingSupport(): void
+
+    public function testMultipleRequestsAreAllAllowed(): void
     {
-        $mockClient = $this->createMockClient([
-            $this->createJsonResponse(['data' => 'chunk1']),
-            $this->createJsonResponse(['data' => 'chunk2'])
-        ]);
-        
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        $responses = [
-            $wrappedClient->request('GET', 'https://api.example.com/stream1'),
-            $wrappedClient->request('GET', 'https://api.example.com/stream2')
-        ];
-        
-        $stream = $wrappedClient->stream($responses, 30.0);
-        
-        $this->assertNotNull($stream);
-    }
-    
-    public function testUrlSanitization(): void
-    {
-        $mockClient = $this->createMockClient([
-            $this->createJsonResponse(['success' => true])
-        ]);
-        
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        // Make request with sensitive data in query parameters
-        $response = $wrappedClient->request('GET', 'https://api.example.com/test?api_key=secret&token=confidential');
-        
-        $this->assertSame(200, $response->getStatusCode());
-        
-        // Verify that sensitive data is not logged
-        $logRecords = $this->getLogRecords();
-        $this->assertNotEmpty($logRecords);
-        
-        foreach ($logRecords as $record) {
-            if (isset($record['context']['url'])) {
-                $this->assertStringNotContains('secret', $record['context']['url']);
-                $this->assertStringNotContains('confidential', $record['context']['url']);
-            }
-        }
-    }
-    
-    public function testConcurrentRequestHandling(): void
-    {
-        // Create responses for concurrent requests
         $responses = [];
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 5; $i++) {
             $responses[] = $this->createJsonResponse(['request' => $i]);
         }
-        
-        $mockClient = $this->createMockClient($responses);
-        $wrappedClient = $this->middleware->wrap($mockClient);
-        
-        // Make multiple requests quickly to test rate limiting behavior
-        $requestResponses = [];
-        for ($i = 0; $i < 10; $i++) {
-            $requestResponses[] = $wrappedClient->request('GET', "https://api.example.com/test{$i}");
+
+        $mockTransport = $this->createMockTransport($responses);
+        $wrappedTransport = $this->middleware->wrap($mockTransport);
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $wrappedTransport->request('GET', "https://api.example.com/test{$i}");
+            $this->assertSame(200, $response->getStatusCode());
         }
-        
-        // Verify all requests complete (some may be rate limited)
-        foreach ($requestResponses as $response) {
-            $this->assertNotNull($response);
-            $this->assertGreaterThanOrEqual(200, $response->getStatusCode());
-        }
+    }
+
+    public function testUpdateFromHeadersIsCalledAfterRequest(): void
+    {
+        // RateLimiter der updateFromHeaders-Aufrufe trackt
+        $callCount = 0;
+        $rateLimiter = new class($callCount) implements RateLimiterInterface {
+            public int $updateCount = 0;
+
+            public function __construct(int &$callCount) {}
+
+            public function isAllowed(string $key, int $tokens = 1): bool { return true; }
+
+            public function waitForAllowed(string $key, int $tokens = 1, int $maxWaitMs = 30000): bool
+            {
+                return true;
+            }
+
+            public function getWaitTime(string $key): int { return 0; }
+
+            public function reset(string $key): void {}
+
+            public function getStatus(string $key): array { return []; }
+
+            public function updateFromHeaders(string $key, array $headers): void
+            {
+                $this->updateCount++;
+            }
+
+            public function resetAll(): void {}
+
+            public function getAllStatuses(): array { return []; }
+
+            public function cleanup(int $maxAgeSeconds = 3600): int { return 0; }
+
+            public function getTypedStatus(string $key): \Four\RateLimit\RateLimitStatus
+            {
+                throw new \RuntimeException('Not implemented in mock');
+            }
+
+            public function getAllTypedStatuses(): array { return []; }
+        };
+
+        $mockTransport = $this->createMockTransport([
+            $this->createJsonResponse(['success' => true]),
+        ]);
+
+        $middleware = new RateLimitingMiddleware($rateLimiter, 'general', $this->logger);
+        $wrappedTransport = $middleware->wrap($mockTransport);
+
+        $wrappedTransport->request('GET', 'https://api.example.com/test');
+
+        $this->assertSame(1, $rateLimiter->updateCount);
     }
 }

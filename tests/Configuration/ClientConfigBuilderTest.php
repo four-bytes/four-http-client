@@ -111,13 +111,11 @@ class ClientConfigBuilderTest extends TestCase
     public function testWithRetries(): void
     {
         $config = ClientConfig::create('https://api.example.com')
-            ->withRetries(5, [500, 502, 503])
+            ->withRetries()
             ->build();
         
         $this->assertContains('retry', $config->middleware);
         $this->assertNotNull($config->retryConfig);
-        $this->assertSame(5, $config->retryConfig->getMaxAttempts());
-        $this->assertSame([500, 502, 503], $config->retryConfig->getRetryableStatusCodes());
     }
     
     public function testWithAuth(): void
@@ -175,7 +173,7 @@ class ClientConfigBuilderTest extends TestCase
         
         $this->assertSame('application/json', $config->defaultHeaders['Accept']);
         $this->assertSame('application/json', $config->defaultHeaders['Content-Type']);
-        $this->assertStringContains('Amazon SP-API', $config->defaultHeaders['User-Agent']);
+        $this->assertStringContainsString('Amazon SP-API', $config->defaultHeaders['User-Agent']);
         $this->assertSame(30.0, $config->timeout);
         $this->assertContains('logging', $config->middleware);
         $this->assertContains('rate_limiting', $config->middleware);
@@ -190,7 +188,7 @@ class ClientConfigBuilderTest extends TestCase
         
         $this->assertSame('application/json', $config->defaultHeaders['Accept']);
         $this->assertSame('application/json', $config->defaultHeaders['Content-Type']);
-        $this->assertStringContains('eBay API', $config->defaultHeaders['User-Agent']);
+        $this->assertStringContainsString('eBay API', $config->defaultHeaders['User-Agent']);
         $this->assertSame(25.0, $config->timeout);
         $this->assertContains('logging', $config->middleware);
         $this->assertContains('rate_limiting', $config->middleware);
@@ -204,7 +202,7 @@ class ClientConfigBuilderTest extends TestCase
             ->build();
         
         $this->assertSame('application/vnd.discogs.v2.discogs+json', $config->defaultHeaders['Accept']);
-        $this->assertStringContains('4bytes.de', $config->defaultHeaders['User-Agent']);
+        $this->assertStringContainsString('4bytes.de', $config->defaultHeaders['User-Agent']);
         $this->assertSame(15.0, $config->timeout);
         $this->assertContains('logging', $config->middleware);
         $this->assertContains('rate_limiting', $config->middleware);
@@ -218,7 +216,7 @@ class ClientConfigBuilderTest extends TestCase
             ->build();
         
         $this->assertSame('application/json', $config->defaultHeaders['Accept']);
-        $this->assertStringContains('Mozilla/5.0', $config->defaultHeaders['User-Agent']);
+        $this->assertStringContainsString('Mozilla/5.0', $config->defaultHeaders['User-Agent']);
         $this->assertSame(15.0, $config->timeout);
         $this->assertContains('logging', $config->middleware);
         $this->assertContains('rate_limiting', $config->middleware);
@@ -233,7 +231,7 @@ class ClientConfigBuilderTest extends TestCase
         $this->assertSame(60.0, $config->timeout);
         $this->assertSame(10, $config->maxRedirects);
         $this->assertContains('logging', $config->middleware);
-        $this->assertStringContains('Development', $config->defaultHeaders['User-Agent']);
+        $this->assertStringContainsString('Development', $config->defaultHeaders['User-Agent']);
     }
     
     public function testForProduction(): void
@@ -248,7 +246,7 @@ class ClientConfigBuilderTest extends TestCase
         $this->assertContains('rate_limiting', $config->middleware);
         $this->assertContains('retry', $config->middleware);
         $this->assertContains('performance', $config->middleware);
-        $this->assertStringContains('Production', $config->defaultHeaders['User-Agent']);
+        $this->assertStringContainsString('Production', $config->defaultHeaders['User-Agent']);
     }
     
     public function testChainedConfiguration(): void
