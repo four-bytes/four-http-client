@@ -1,6 +1,6 @@
 {
     "name": "four-bytes/four-http-client",
-    "description": "Modern PHP 8.4+ HTTP client factory and middleware library for marketplace API integrations",
+    "description": "Modern PHP 8.4+ HTTP client factory and middleware library for API integrations",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -13,7 +13,6 @@
         "http",
         "client",
         "middleware",
-        "marketplace",
         "api",
         "rate-limiting",
         "psr-18",
@@ -35,9 +34,9 @@
         "php-http/mock-client": "^1.6"
     },
     "suggest": {
-        "symfony/http-client": "PSR-18 HTTP Client Implementierung (automatisch via php-http/discovery erkannt)",
-        "guzzlehttp/guzzle": "Alternative PSR-18 Implementierung",
-        "nyholm/psr7": "PSR-7 Implementierung (wird für Tests empfohlen)"
+        "symfony/http-client": "PSR-18 HTTP client implementation (auto-detected via php-http/discovery)",
+        "guzzlehttp/guzzle": "Alternative PSR-18 HTTP client implementation",
+        "nyholm/psr7": "PSR-7 implementation (recommended for testing)"
     },
     "autoload": {
         "psr-4": {

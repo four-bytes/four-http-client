@@ -123,17 +123,18 @@ Requires `four-bytes/four-rate-limiting`:
 
 ```php
 use Four\RateLimit\RateLimiterFactory;
-use Four\RateLimit\Policy\TokenBucketPolicy;
+use Four\RateLimit\RateLimitConfiguration;
 
-$factory = new RateLimiterFactory();
-$limiter = $factory->create('api_requests', new TokenBucketPolicy(
-    capacity: 20,
-    refillRate: 20,
-    refillPeriod: 1.0
-));
+$config = new RateLimitConfiguration(
+    algorithm: RateLimitConfiguration::ALGORITHM_TOKEN_BUCKET,
+    ratePerSecond: 10.0,
+    burstCapacity: 20,
+);
 
-$config = ClientConfig::create('https://api.example.com')
-    ->withRateLimit($limiter)
+$rateLimiter = (new RateLimiterFactory())->create($config);
+
+$clientConfig = ClientConfig::create('https://api.example.com')
+    ->withRateLimit($rateLimiter)
     ->build();
 ```
 
@@ -190,14 +191,11 @@ use Four\Http\Authentication\TokenProvider;
 // Bearer token (default)
 $provider = TokenProvider::bearer('your-access-token');
 
-// API key
+// API key with custom header
 $provider = TokenProvider::apiKey('your-api-key', 'X-API-Key');
 
-// Amazon LWA token
-$provider = TokenProvider::amazonLwa('your-lwa-token');
-
-// Discogs token
-$provider = TokenProvider::discogs('your-discogs-token');
+// Custom header/prefix
+$provider = new TokenProvider('your-token', 'X-Custom-Auth', 'Token');
 
 $config = ClientConfig::create('https://api.example.com')
     ->withAuthentication($provider)
@@ -211,45 +209,33 @@ OAuth 2.0 with automatic token refresh:
 ```php
 use Four\Http\Authentication\OAuthProvider;
 
-// Amazon LWA OAuth
-$amazonAuth = OAuthProvider::amazon(
+// OAuth 2.0 with client credentials or refresh token flow
+$auth = new OAuthProvider(
     clientId: 'your-client-id',
     clientSecret: 'your-client-secret',
+    tokenEndpoint: 'https://api.example.com/oauth/token',
     httpClient: $psr18Client,
     requestFactory: $requestFactory,
     streamFactory: $streamFactory,
-    refreshToken: 'your-refresh-token'
-);
-
-// eBay OAuth
-$ebayAuth = OAuthProvider::ebay(
-    clientId: 'your-client-id',
-    clientSecret: 'your-client-secret',
-    httpClient: $psr18Client,
-    requestFactory: $requestFactory,
-    streamFactory: $streamFactory,
-    refreshToken: 'your-refresh-token',
-    scopes: ['https://api.ebay.com/oauth/api_scope'],
-    sandbox: false
+    refreshToken: 'your-refresh-token',   // optional
+    scopes: ['read', 'write'],            // optional
 );
 ```
 
 ### OAuth1aProvider
 
-OAuth 1.0a signature (Discogs):
+OAuth 1.0a signature-based authentication:
 
 ```php
 use Four\Http\Authentication\OAuth1aProvider;
 
-$discogsAuth = OAuth1aProvider::discogs(
+// OAuth 1.0a signature-based authentication
+$auth = new OAuth1aProvider(
     consumerKey: 'your-consumer-key',
     consumerSecret: 'your-consumer-secret',
     accessToken: 'your-access-token',
-    tokenSecret: 'your-token-secret'
+    tokenSecret: 'your-token-secret',
 );
-
-// Test signature generation
-$testResult = $discogsAuth->testSignature();
 ```
 
 ## Custom Transport
