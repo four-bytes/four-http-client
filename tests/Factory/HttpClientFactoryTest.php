@@ -22,7 +22,9 @@ class HttpClientFactoryTest extends TestCase
 {
     private HttpClientFactory $factory;
 
-    /** @var list<string> */
+    /** @var list<string>
+     * @phpstan-ignore property.onlyWritten
+     */
     private static array $originalStrategies = [];
 
     protected function setUp(): void
@@ -126,6 +128,7 @@ class HttpClientFactoryTest extends TestCase
  */
 class TestPsr18ClientStrategy implements DiscoveryStrategy
 {
+    /** @return list<array{class: class-string, condition: class-string}> */
     public static function getCandidates($type): array
     {
         if ($type === ClientInterface::class) {
