@@ -26,10 +26,16 @@ Recommended: `php-http/discovery` for automatic transport discovery.
 
 ## Quick Start
 
+### Option 1: PSR-18 Client with HttpClientFactory
+
+Build a PSR-18 compliant client and use it directly with PSR-17 request factories:
+
 ```php
 use Four\Http\Configuration\ClientConfig;
 use Four\Http\Factory\HttpClientFactory;
+use Nyholm\Psr7\Factory\Psr17Factory;
 
+// Build a PSR-18 client with middleware stack
 $factory = new HttpClientFactory();
 
 $config = ClientConfig::create('https://api.example.com')
@@ -37,10 +43,58 @@ $config = ClientConfig::create('https://api.example.com')
     ->withTimeout(30.0)
     ->build();
 
-$client = $factory->create($config);
+$psrClient = $factory->create($config);
 
-$response = $client->request('GET', '/api/data');
-$data = json_decode($response->getContent(), true);
+// Use PSR-17 request factory to build requests
+$requestFactory = new Psr17Factory();
+$request = $requestFactory->createRequest('GET', 'https://api.example.com/data');
+
+$response = $psrClient->sendRequest($request);
+$data = json_decode((string) $response->getBody(), true);
+```
+
+### Option 2: Extend ApiClient for Custom API Clients
+
+Create a typed client for your specific API:
+
+```php
+use Four\Http\Client\ApiClient;
+use Four\Http\Configuration\ClientConfig;
+use Four\Http\Factory\ApiClientFactory;
+
+class MyApiClient extends ApiClient
+{
+    public function getUser(int $id): array
+    {
+        return $this->httpGet('/users/' . $id);
+    }
+
+    public function createUser(array $data): array
+    {
+        return $this->httpPost('/users', $data);
+    }
+
+    public function updateUser(int $id, array $data): array
+    {
+        return $this->httpPatch('/users/' . $id, $data);
+    }
+
+    public function deleteUser(int $id): void
+    {
+        $this->httpDelete('/users/' . $id);
+    }
+}
+
+$config = ClientConfig::create('https://api.example.com')
+    ->withAuth('bearer', 'your-token')
+    ->withTimeout(30.0)
+    ->build();
+
+$factory = new ApiClientFactory();
+$client = $factory->create($config, MyApiClient::class);
+
+$user = $client->getUser(42);
+$newUser = $client->createUser(['name' => 'John']);
 ```
 
 ## Configuration
@@ -268,30 +322,39 @@ $client = new TransportPsr18Adapter($transport);
 The library maps HTTP status codes to specific exceptions:
 
 ```php
+use Four\Http\Client\ApiClient;
 use Four\Http\Exception\HttpClientException;
 use Four\Http\Exception\AuthenticationException;
 use Four\Http\Exception\NotFoundException;
 use Four\Http\Exception\RateLimitException;
 use Four\Http\Exception\RetryableException;
 
-try {
-    $response = $client->request('GET', '/api/data');
-} catch (NotFoundException $e) {
-    // 404 - Resource not found
-    echo "Not found: " . $e->getMessage();
-} catch (AuthenticationException $e) {
-    // 401/403 - Auth failed
-    echo "Auth error: " . $e->getMessage();
-} catch (RateLimitException $e) {
-    // 429 - Rate limited
-    $retryAfter = $e->getRetryAfter();
-    sleep($retryAfter);
-} catch (RetryableException $e) {
-    // 500, 502, 503, 504 - Server errors, will be retried automatically
-    echo "Server error: " . $e->getMessage();
-} catch (HttpClientException $e) {
-    // Other HTTP errors
-    echo "HTTP error: " . $e->getMessage();
+class MyApiClient extends ApiClient
+{
+    public function getData(): array
+    {
+        try {
+            return $this->httpGet('/api/data');
+        } catch (NotFoundException $e) {
+            // 404 - Resource not found
+            echo "Not found: " . $e->getMessage();
+        } catch (AuthenticationException $e) {
+            // 401/403 - Auth failed
+            echo "Auth error: " . $e->getMessage();
+        } catch (RateLimitException $e) {
+            // 429 - Rate limited
+            $retryAfter = $e->getRetryAfter();
+            sleep($retryAfter);
+        } catch (RetryableException $e) {
+            // 500, 502, 503, 504 - Server errors, will be retried automatically
+            echo "Server error: " . $e->getMessage();
+        } catch (HttpClientException $e) {
+            // Other HTTP errors
+            echo "HTTP error: " . $e->getMessage();
+        }
+
+        return [];
+    }
 }
 ```
 
