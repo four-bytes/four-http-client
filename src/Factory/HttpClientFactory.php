@@ -68,9 +68,26 @@ class HttpClientFactory implements HttpClientFactoryInterface
      */
     private function buildTransport(ClientConfig $config): HttpTransportInterface
     {
+        $psrClient = $this->resolvePsr18Client($config);
+        return new DiscoveryHttpTransport($psrClient, $config->toHttpClientOptions());
+    }
+
+    /**
+     * Resolve the underlying PSR-18 HTTP client.
+     *
+     * When SSL verification is disabled, creates a Guzzle client directly
+     * with verify => false, since PSR-18 has no standard way to configure this.
+     */
+    private function resolvePsr18Client(ClientConfig $config): \Psr\Http\Client\ClientInterface
+    {
+        // When SSL verification is disabled, we need a Guzzle client configured accordingly.
+        // PSR-18 sendRequest() has no mechanism to pass transport-level options like SSL verify.
+        if (!$config->sslVerify && class_exists(\GuzzleHttp\Client::class)) {
+            return new \GuzzleHttp\Client(['verify' => false]);
+        }
+
         try {
-            $psrClient = \Http\Discovery\Psr18ClientDiscovery::find();
-            return new DiscoveryHttpTransport($psrClient, $config->toHttpClientOptions());
+            return \Http\Discovery\Psr18ClientDiscovery::find();
         } catch (\Http\Discovery\Exception\NotFoundException $e) {
             throw new \RuntimeException(
                 'No PSR-18 HTTP client found. Install symfony/http-client, guzzlehttp/guzzle, or another PSR-18 implementation.',

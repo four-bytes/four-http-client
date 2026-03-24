@@ -26,6 +26,7 @@ readonly class ClientConfig
      * @param RetryConfig|null $retryConfig Retry configuration
      * @param float $timeout Request timeout in seconds
      * @param int $maxRedirects Maximum number of redirects to follow
+     * @param bool $sslVerify Whether to verify SSL certificates
      * @param array<string, mixed> $additionalOptions Additional client options
      */
     public function __construct(
@@ -38,6 +39,7 @@ readonly class ClientConfig
         public ?RetryConfig $retryConfig = null,
         public float $timeout = 30.0,
         public int $maxRedirects = 3,
+        public bool $sslVerify = true,
         public array $additionalOptions = []
     ) {}
 
@@ -66,6 +68,7 @@ readonly class ClientConfig
         ?RetryConfig $retryConfig = null,
         ?float $timeout = null,
         ?int $maxRedirects = null,
+        ?bool $sslVerify = null,
         ?array $additionalOptions = null
     ): self {
         return new self(
@@ -78,6 +81,7 @@ readonly class ClientConfig
             $retryConfig ?? $this->retryConfig,
             $timeout ?? $this->timeout,
             $maxRedirects ?? $this->maxRedirects,
+            $sslVerify ?? $this->sslVerify,
             $additionalOptions ?? $this->additionalOptions
         );
     }

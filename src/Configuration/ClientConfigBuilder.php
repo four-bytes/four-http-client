@@ -30,6 +30,7 @@ class ClientConfigBuilder
     private ?RetryConfig $retryConfig = null;
     private float $timeout = 30.0;
     private int $maxRedirects = 3;
+    private bool $sslVerify = true;
     
     /** @var array<string, mixed> */
     private array $additionalOptions = [];
@@ -166,6 +167,16 @@ class ClientConfigBuilder
     }
 
     /**
+     * Enable or disable SSL certificate verification.
+     * Disable for self-signed certificates in development/migration scenarios.
+     */
+    public function withSslVerify(bool $verify): self
+    {
+        $this->sslVerify = $verify;
+        return $this;
+    }
+
+    /**
      * Add additional options for the HTTP client
      *
      * @param array<string, mixed> $options
@@ -225,6 +236,7 @@ class ClientConfigBuilder
             $this->retryConfig,
             $this->timeout,
             $this->maxRedirects,
+            $this->sslVerify,
             $this->additionalOptions
         );
     }
