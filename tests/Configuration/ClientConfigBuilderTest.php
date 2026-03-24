@@ -218,4 +218,21 @@ class ClientConfigBuilderTest extends TestCase
         $this->assertSame(false, $config->additionalOptions['verify_peer']);
         $this->assertSame(false, $config->additionalOptions['verify_host']);
     }
+
+    public function testWithSslVerifyDefaultsToTrue(): void
+    {
+        $config = ClientConfig::create('https://api.example.com')
+            ->build();
+        
+        $this->assertTrue($config->sslVerify);
+    }
+
+    public function testWithSslVerifyFalse(): void
+    {
+        $config = ClientConfig::create('https://api.example.com')
+            ->withSslVerify(false)
+            ->build();
+        
+        $this->assertFalse($config->sslVerify);
+    }
 }
