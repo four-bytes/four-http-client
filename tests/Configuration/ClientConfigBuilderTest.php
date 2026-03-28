@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Four\Http\Tests\Configuration;
 
+use Four\Http\Authentication\RequestSignerInterface;
 use Four\Http\Configuration\ClientConfig;
 use Four\Http\Tests\TestCase;
 
@@ -234,5 +235,78 @@ class ClientConfigBuilderTest extends TestCase
             ->build();
         
         $this->assertFalse($config->sslVerify);
+    }
+
+    public function testWithRequestSignerSetsSignerOnConfig(): void
+    {
+        $signer = new class implements RequestSignerInterface {
+            public function signRequest(string $method, string $url, array $headers, string $body): array
+            {
+                return ['url' => $url, 'headers' => []];
+            }
+
+            public function getName(): string
+            {
+                return 'test_signer';
+            }
+        };
+
+        $config = ClientConfig::create('https://api.example.com')
+            ->withRequestSigner($signer)
+            ->build();
+
+        $this->assertSame($signer, $config->requestSigner);
+    }
+
+    public function testWithRequestSignerAddsRequestSigningMiddleware(): void
+    {
+        $signer = new class implements RequestSignerInterface {
+            public function signRequest(string $method, string $url, array $headers, string $body): array
+            {
+                return ['url' => $url, 'headers' => []];
+            }
+
+            public function getName(): string
+            {
+                return 'test_signer';
+            }
+        };
+
+        $config = ClientConfig::create('https://api.example.com')
+            ->withRequestSigner($signer)
+            ->build();
+
+        $this->assertContains('request_signing', $config->middleware);
+    }
+
+    public function testRequestSignerDefaultsToNull(): void
+    {
+        $config = ClientConfig::create('https://api.example.com')
+            ->build();
+
+        $this->assertNull($config->requestSigner);
+    }
+
+    public function testWithMethodPreservesRequestSigner(): void
+    {
+        $signer = new class implements RequestSignerInterface {
+            public function signRequest(string $method, string $url, array $headers, string $body): array
+            {
+                return ['url' => $url, 'headers' => []];
+            }
+
+            public function getName(): string
+            {
+                return 'test_signer';
+            }
+        };
+
+        $config = ClientConfig::create('https://api.example.com')
+            ->withRequestSigner($signer)
+            ->build();
+
+        $modified = $config->with(timeout: 60.0);
+
+        $this->assertSame($signer, $modified->requestSigner);
     }
 }

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Four\Http\Factory;
 
+use Four\Http\Authentication\RequestSignerInterface;
 use Four\Http\Configuration\ClientConfig;
 use Four\Http\Middleware\LoggingMiddleware;
 use Four\Http\Middleware\MiddlewareInterface;
-use Four\Http\Middleware\OAuth1aMiddleware;
 use Four\Http\Middleware\RateLimitingMiddleware;
+use Four\Http\Middleware\RequestSigningMiddleware;
 use Four\Http\Middleware\RetryMiddleware;
 use Four\Http\Transport\DiscoveryHttpTransport;
 use Four\Http\Transport\HttpTransportInterface;
@@ -100,10 +101,11 @@ class HttpClientFactory implements HttpClientFactoryInterface
     private function initializeMiddleware(): void
     {
         $this->availableMiddleware = [
-            'logging'       => 'logging',
-            'rate_limiting' => 'rate_limiting',
-            'retry'         => 'retry',
-            'oauth_1a'      => 'oauth_1a',
+            'logging'          => 'logging',
+            'rate_limiting'    => 'rate_limiting',
+            'retry'            => 'retry',
+            'request_signing'  => 'request_signing',
+            'oauth_1a'         => 'oauth_1a',
         ];
     }
 
@@ -142,9 +144,18 @@ class HttpClientFactory implements HttpClientFactoryInterface
                     }
                     break;
 
+                case 'request_signing':
+                    if ($config->requestSigner !== null) {
+                        $middleware[$name] = new RequestSigningMiddleware(
+                            $config->requestSigner,
+                            $logger,
+                        );
+                    }
+                    break;
+
                 case 'oauth_1a':
                     if ($config->authProvider instanceof \Four\Http\Authentication\OAuth1aProvider) {
-                        $middleware[$name] = new OAuth1aMiddleware(
+                        $middleware[$name] = new RequestSigningMiddleware(
                             $config->authProvider,
                             $logger,
                         );

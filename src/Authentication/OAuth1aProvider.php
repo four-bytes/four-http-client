@@ -12,7 +12,7 @@ use Four\Http\Exception\AuthenticationException;
  * Implements OAuth 1.0a signature generation for APIs like Discogs
  * that require OAuth 1.0a authentication with signature verification.
  */
-class OAuth1aProvider implements AuthProviderInterface
+class OAuth1aProvider implements AuthProviderInterface, RequestSignerInterface
 {
     public function __construct(
         private readonly string $consumerKey,
@@ -86,6 +86,35 @@ class OAuth1aProvider implements AuthProviderInterface
         return [
             'Authorization' => $authHeader
         ];
+    }
+
+    /**
+     * Sign a request with OAuth 1.0a signature.
+     * Implements RequestSignerInterface for generic middleware support.
+     *
+     * @param array<string, string> $headers
+     * @return array{url: string, headers: array<string, string>}
+     */
+    public function signRequest(string $method, string $url, array $headers, string $body): array
+    {
+        // Parse query params from URL for signature calculation
+        $parsedUrl = parse_url($url);
+        $queryParams = [];
+        if (isset($parsedUrl['query'])) {
+            parse_str($parsedUrl['query'], $queryParams);
+        }
+
+        $oauthHeaders = $this->getAuthHeadersForRequest($method, $url, $queryParams);
+
+        return [
+            'url' => $url, // OAuth 1.0a doesn't modify the URL
+            'headers' => $oauthHeaders,
+        ];
+    }
+
+    public function getName(): string
+    {
+        return 'oauth_1a';
     }
 
     public function isValid(): bool

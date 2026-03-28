@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Tests\Authentication;
 
 use Four\Http\Authentication\OAuth1aProvider;
+use Four\Http\Authentication\RequestSignerInterface;
 use Four\Http\Tests\TestCase;
 
 /**
@@ -242,6 +243,101 @@ class OAuth1aProviderTest extends TestCase
         $provider->getAuthHeadersForRequest('GET', 'https://api.example.com/test');
     }
     
+    // --- RequestSignerInterface tests ---
+
+    public function testImplementsRequestSignerInterface(): void
+    {
+        $this->assertInstanceOf(RequestSignerInterface::class, $this->provider);
+    }
+
+    public function testGetNameReturnsOauth1a(): void
+    {
+        $this->assertSame('oauth_1a', $this->provider->getName());
+    }
+
+    public function testSignRequestReturnsCorrectShape(): void
+    {
+        $result = $this->provider->signRequest(
+            'GET',
+            'https://api.discogs.com/oauth/identity',
+            [],
+            ''
+        );
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('url', $result);
+        $this->assertArrayHasKey('headers', $result);
+    }
+
+    public function testSignRequestDoesNotModifyUrl(): void
+    {
+        $url = 'https://api.discogs.com/oauth/identity';
+
+        $result = $this->provider->signRequest('GET', $url, [], '');
+
+        $this->assertSame($url, $result['url']);
+    }
+
+    public function testSignRequestProducesAuthorizationHeader(): void
+    {
+        $result = $this->provider->signRequest(
+            'GET',
+            'https://api.discogs.com/oauth/identity',
+            [],
+            ''
+        );
+
+        $this->assertArrayHasKey('Authorization', $result['headers']);
+        $this->assertStringStartsWith('OAuth ', $result['headers']['Authorization']);
+        $this->assertStringContainsString('oauth_signature=', $result['headers']['Authorization']);
+    }
+
+    public function testSignRequestExtractsQueryParamsFromUrl(): void
+    {
+        $urlWithParams = 'https://api.discogs.com/database/search?type=release&per_page=50';
+
+        $result = $this->provider->signRequest('GET', $urlWithParams, [], '');
+
+        // URL unchanged
+        $this->assertSame($urlWithParams, $result['url']);
+        // Authorization header should include signature computed with the query params
+        $this->assertArrayHasKey('Authorization', $result['headers']);
+        $this->assertStringContainsString('oauth_signature=', $result['headers']['Authorization']);
+    }
+
+    public function testSignRequestIgnoresBodyForOauth1a(): void
+    {
+        $result = $this->provider->signRequest(
+            'POST',
+            'https://api.discogs.com/marketplace/listings',
+            [],
+            '{"some":"body"}'
+        );
+
+        // Body is intentionally not signed in OAuth 1.0a header-based flow
+        $this->assertArrayHasKey('Authorization', $result['headers']);
+    }
+
+    public function testSignRequestPassesHeadersThroughUnmodified(): void
+    {
+        $incomingHeaders = ['Accept' => 'application/json'];
+
+        $result = $this->provider->signRequest(
+            'GET',
+            'https://api.discogs.com/oauth/identity',
+            $incomingHeaders,
+            ''
+        );
+
+        // signRequest only returns the *added* headers, not a merged copy
+        $this->assertArrayHasKey('Authorization', $result['headers']);
+        // The returned headers array should not re-echo the incoming Accept header
+        // (merging is the middleware's responsibility)
+        $this->assertArrayNotHasKey('Accept', $result['headers']);
+    }
+
+    // --- end RequestSignerInterface tests ---
+
     public function testUrlEncodingInSignature(): void
     {
         $method = 'GET';

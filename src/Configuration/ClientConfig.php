@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Configuration;
 
 use Four\Http\Authentication\AuthProviderInterface;
+use Four\Http\Authentication\RequestSignerInterface;
 use Four\RateLimit\RateLimiterInterface;
 use Psr\Log\LoggerInterface;
 
@@ -21,6 +22,7 @@ readonly class ClientConfig
      * @param array<string, mixed> $defaultHeaders Default headers to include with requests
      * @param array<string> $middleware List of middleware to apply
      * @param AuthProviderInterface|null $authProvider Authentication provider
+     * @param RequestSignerInterface|null $requestSigner Per-request signer (HMAC, OAuth 1.0a, SigV4, etc.)
      * @param RateLimiterInterface|null $rateLimiter Rate limiter instance
      * @param LoggerInterface|null $logger Logger instance
      * @param RetryConfig|null $retryConfig Retry configuration
@@ -34,6 +36,7 @@ readonly class ClientConfig
         public array $defaultHeaders = [],
         public array $middleware = [],
         public ?AuthProviderInterface $authProvider = null,
+        public ?RequestSignerInterface $requestSigner = null,
         public ?RateLimiterInterface $rateLimiter = null,
         public ?LoggerInterface $logger = null,
         public ?RetryConfig $retryConfig = null,
@@ -63,6 +66,7 @@ readonly class ClientConfig
         ?array $defaultHeaders = null,
         ?array $middleware = null,
         ?AuthProviderInterface $authProvider = null,
+        ?RequestSignerInterface $requestSigner = null,
         ?RateLimiterInterface $rateLimiter = null,
         ?LoggerInterface $logger = null,
         ?RetryConfig $retryConfig = null,
@@ -76,6 +80,7 @@ readonly class ClientConfig
             $defaultHeaders ?? $this->defaultHeaders,
             $middleware ?? $this->middleware,
             $authProvider ?? $this->authProvider,
+            $requestSigner ?? $this->requestSigner,
             $rateLimiter ?? $this->rateLimiter,
             $logger ?? $this->logger,
             $retryConfig ?? $this->retryConfig,
