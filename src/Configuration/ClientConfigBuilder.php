@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Configuration;
 
 use Four\Http\Authentication\AuthProviderInterface;
+use Four\Http\Authentication\RequestSignerInterface;
 use Four\RateLimit\RateLimiterInterface;
 use Psr\Log\LoggerInterface;
 
@@ -25,6 +26,7 @@ class ClientConfigBuilder
     private array $middleware = [];
     
     private ?AuthProviderInterface $authProvider = null;
+    private ?RequestSignerInterface $requestSigner = null;
     private ?RateLimiterInterface $rateLimiter = null;
     private ?LoggerInterface $logger = null;
     private ?RetryConfig $retryConfig = null;
@@ -111,6 +113,15 @@ class ClientConfigBuilder
     {
         $this->logger = $logger;
         return $this->withMiddleware('logging');
+    }
+
+    /**
+     * Set a request signer for per-request signing (HMAC, OAuth 1.0a, etc.)
+     */
+    public function withRequestSigner(RequestSignerInterface $requestSigner): self
+    {
+        $this->requestSigner = $requestSigner;
+        return $this->withMiddleware('request_signing');
     }
 
     /**
@@ -231,6 +242,7 @@ class ClientConfigBuilder
             $this->defaultHeaders,
             $this->middleware,
             $this->authProvider,
+            $this->requestSigner,
             $this->rateLimiter,
             $this->logger,
             $this->retryConfig,
