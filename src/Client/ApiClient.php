@@ -49,7 +49,7 @@ abstract class ApiClient
         $request = $this->buildRequest('GET', $url);
         $response = $this->httpClient->sendRequest($request);
 
-        return $this->handleResponse($response);
+        return $this->handleResponse($response, $request);
     }
 
     /**
@@ -65,7 +65,7 @@ abstract class ApiClient
         $request = $this->buildRequest('POST', $url, $encoded);
         $response = $this->httpClient->sendRequest($request);
 
-        return $this->handleResponse($response);
+        return $this->handleResponse($response, $request);
     }
 
     /**
@@ -81,7 +81,7 @@ abstract class ApiClient
         $request = $this->buildRequest('PATCH', $url, $encoded);
         $response = $this->httpClient->sendRequest($request);
 
-        return $this->handleResponse($response);
+        return $this->handleResponse($response, $request);
     }
 
     /**
@@ -140,7 +140,7 @@ abstract class ApiClient
      * @throws RetryableException      bei 5xx
      * @throws HttpClientException     bei anderen 4xx
      */
-    protected function handleResponse(ResponseInterface $response): array
+    protected function handleResponse(ResponseInterface $response, ?RequestInterface $request = null): array
     {
         $statusCode = $response->getStatusCode();
 
@@ -150,7 +150,29 @@ abstract class ApiClient
                 return [];
             }
 
-            return json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            try {
+                return json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $e) {
+                $ctype = $response->getHeaderLine('Content-Type') ?: '(none)';
+                $len = strlen($body);
+                $preview = trim(preg_replace('/\s+/', ' ', substr($body, 0, 200)));
+
+                // Dump full body + request URL to disk for inspection
+                $dumpPath = null;
+                $rand = bin2hex(random_bytes(4));
+                $dumpPath = "/tmp/four-http-jsonerr-" . date('YmdHis') . "-{$rand}.txt";
+                $urlLine = $request !== null
+                    ? "URL: {$request->getMethod()} {$request->getUri()}"
+                    : "URL: (request not provided)";
+                $dumpContent = "{$urlLine}\nStatus: {$statusCode}\nContent-Type: {$ctype}\nBody-Length: {$len}\n---BODY---\n{$body}";
+                @file_put_contents($dumpPath, $dumpContent);
+
+                throw new HttpClientException(
+                    message: "JSON decode failed: {$e->getMessage()} (HTTP {$statusCode}, Content-Type: {$ctype}, body {$len} bytes): {$preview} [dump: {$dumpPath}]",
+                    code: $statusCode,
+                    previous: $e,
+                );
+            }
         }
 
         $this->throwForStatus($statusCode, $response);
