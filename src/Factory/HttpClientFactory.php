@@ -84,7 +84,12 @@ class HttpClientFactory implements HttpClientFactoryInterface
         // When SSL verification is disabled, we need a Guzzle client configured accordingly.
         // PSR-18 sendRequest() has no mechanism to pass transport-level options like SSL verify.
         if (!$config->sslVerify && class_exists(\GuzzleHttp\Client::class)) {
-            return new \GuzzleHttp\Client(['verify' => false]);
+            $client = new \GuzzleHttp\Client(['verify' => false]);
+            if (!$client instanceof ClientInterface) {
+                throw new \RuntimeException('GuzzleHttp\\Client does not implement the PSR-18 ClientInterface.');
+            }
+
+            return $client;
         }
 
         try {

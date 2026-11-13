@@ -66,10 +66,9 @@ class RequestSigningMiddlewareTest extends TestCase
 
     public function testSigningAddsHeadersToRequest(): void
     {
-        $capturedOptions = null;
-
-        $transport = new class($capturedOptions) implements HttpTransportInterface {
-            public function __construct(private mixed &$captured) {}
+        $transport = new class implements HttpTransportInterface {
+            /** @var array<string, mixed>|null */
+            public ?array $captured = null;
 
             public function request(string $method, string $url, array $options = []): \Four\Http\Transport\HttpResponseInterface
             {
@@ -90,18 +89,20 @@ class RequestSigningMiddlewareTest extends TestCase
 
         $wrapped->request('GET', 'https://api.example.com/test', []);
 
+        $capturedOptions = $transport->captured;
         $this->assertNotNull($capturedOptions);
         $this->assertArrayHasKey('headers', $capturedOptions);
-        $this->assertArrayHasKey('X-Signature', $capturedOptions['headers']);
-        $this->assertSame('test-sig-get', $capturedOptions['headers']['X-Signature']);
+        /** @var array<string, string> $headers */
+        $headers = $capturedOptions['headers'];
+        $this->assertArrayHasKey('X-Signature', $headers);
+        $this->assertSame('test-sig-get', $headers['X-Signature']);
     }
 
     public function testSigningMergesWithExistingHeaders(): void
     {
-        $capturedOptions = null;
-
-        $transport = new class($capturedOptions) implements HttpTransportInterface {
-            public function __construct(private mixed &$captured) {}
+        $transport = new class implements HttpTransportInterface {
+            /** @var array<string, mixed>|null */
+            public ?array $captured = null;
 
             public function request(string $method, string $url, array $options = []): \Four\Http\Transport\HttpResponseInterface
             {
@@ -124,17 +125,19 @@ class RequestSigningMiddlewareTest extends TestCase
             'headers' => ['Content-Type' => 'application/json'],
         ]);
 
+        $capturedOptions = $transport->captured;
         $this->assertNotNull($capturedOptions);
-        $this->assertArrayHasKey('Content-Type', $capturedOptions['headers']);
-        $this->assertArrayHasKey('X-Signature', $capturedOptions['headers']);
-        $this->assertSame('application/json', $capturedOptions['headers']['Content-Type']);
-        $this->assertSame('test-sig-post', $capturedOptions['headers']['X-Signature']);
+        $this->assertArrayHasKey('headers', $capturedOptions);
+        /** @var array<string, string> $headers */
+        $headers = $capturedOptions['headers'];
+        $this->assertArrayHasKey('Content-Type', $headers);
+        $this->assertArrayHasKey('X-Signature', $headers);
+        $this->assertSame('application/json', $headers['Content-Type']);
+        $this->assertSame('test-sig-post', $headers['X-Signature']);
     }
 
     public function testSigningCanModifyUrl(): void
     {
-        $capturedUrl = null;
-
         // Signer that adds a query param to the URL
         $urlModifyingSigner = new class implements RequestSignerInterface {
             public function signRequest(string $method, string $url, array $headers, string $body): array
@@ -151,8 +154,8 @@ class RequestSigningMiddlewareTest extends TestCase
             }
         };
 
-        $transport = new class($capturedUrl) implements HttpTransportInterface {
-            public function __construct(private mixed &$captured) {}
+        $transport = new class implements HttpTransportInterface {
+            public ?string $captured = null;
 
             public function request(string $method, string $url, array $options = []): \Four\Http\Transport\HttpResponseInterface
             {
@@ -173,15 +176,13 @@ class RequestSigningMiddlewareTest extends TestCase
 
         $wrapped->request('GET', 'https://api.example.com/test', []);
 
-        $this->assertSame('https://api.example.com/test?sign=abc123', $capturedUrl);
+        $this->assertSame('https://api.example.com/test?sign=abc123', $transport->captured);
     }
 
     public function testSigningPassesBodyToSigner(): void
     {
-        $capturedBody = null;
-
-        $bodySigner = new class($capturedBody) implements RequestSignerInterface {
-            public function __construct(private mixed &$captured) {}
+        $bodySigner = new class implements RequestSignerInterface {
+            public ?string $captured = null;
 
             public function signRequest(string $method, string $url, array $headers, string $body): array
             {
@@ -206,15 +207,13 @@ class RequestSigningMiddlewareTest extends TestCase
             'body' => '{"key":"value"}',
         ]);
 
-        $this->assertSame('{"key":"value"}', $capturedBody);
+        $this->assertSame('{"key":"value"}', $bodySigner->captured);
     }
 
     public function testSigningPassesMethodToSigner(): void
     {
-        $capturedMethod = null;
-
-        $methodSigner = new class($capturedMethod) implements RequestSignerInterface {
-            public function __construct(private mixed &$captured) {}
+        $methodSigner = new class implements RequestSignerInterface {
+            public ?string $captured = null;
 
             public function signRequest(string $method, string $url, array $headers, string $body): array
             {
@@ -237,7 +236,7 @@ class RequestSigningMiddlewareTest extends TestCase
 
         $wrapped->request('DELETE', 'https://api.example.com/resource/1', []);
 
-        $this->assertSame('DELETE', $capturedMethod);
+        $this->assertSame('DELETE', $methodSigner->captured);
     }
 
     public function testExceptionIsPropagated(): void
@@ -276,10 +275,8 @@ class RequestSigningMiddlewareTest extends TestCase
 
     public function testEmptyBodyDefaultsToEmptyString(): void
     {
-        $capturedBody = null;
-
-        $bodySigner = new class($capturedBody) implements RequestSignerInterface {
-            public function __construct(private mixed &$captured) {}
+        $bodySigner = new class implements RequestSignerInterface {
+            public ?string $captured = null;
 
             public function signRequest(string $method, string $url, array $headers, string $body): array
             {
@@ -303,6 +300,6 @@ class RequestSigningMiddlewareTest extends TestCase
         // No body in options
         $wrapped->request('GET', 'https://api.example.com/test', []);
 
-        $this->assertSame('', $capturedBody);
+        $this->assertSame('', $bodySigner->captured);
     }
 }

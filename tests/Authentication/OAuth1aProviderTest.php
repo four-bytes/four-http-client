@@ -264,7 +264,6 @@ class OAuth1aProviderTest extends TestCase
             ''
         );
 
-        $this->assertIsArray($result);
         $this->assertArrayHasKey('url', $result);
         $this->assertArrayHasKey('headers', $result);
     }
