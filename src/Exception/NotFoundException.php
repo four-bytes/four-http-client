@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Four\Http\Exception;
 
 /**
- * Exception für nicht gefundene Ressourcen (HTTP 404).
+ * Exception for resources that were not found (HTTP 404).
  */
 class NotFoundException extends HttpClientException
 {

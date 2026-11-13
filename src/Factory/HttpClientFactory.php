@@ -19,10 +19,10 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Factory für PSR-18-konforme HTTP-Clients.
+ * Factory for PSR-18 compliant HTTP clients.
  *
- * Baut intern über HttpTransportInterface + Middleware-Stack.
- * Nutzt php-http/discovery zur automatischen PSR-18 Client-Erkennung.
+ * Internally builds on HttpTransportInterface + a middleware stack.
+ * Uses php-http/discovery for automatic PSR-18 client discovery.
  */
 class HttpClientFactory implements HttpClientFactoryInterface
 {
@@ -36,17 +36,17 @@ class HttpClientFactory implements HttpClientFactoryInterface
     }
 
     /**
-     * Erstellt einen PSR-18-Client mit Middleware-Stack aus der Config.
+     * Creates a PSR-18 client with a middleware stack from the config.
      */
     public function create(ClientConfig $config): ClientInterface
     {
-        // Transport aufbauen (via php-http/discovery)
+        // Build the transport (via php-http/discovery)
         $transport = $this->buildTransport($config);
 
-        // Middleware stapeln
+        // Stack the middleware
         $middleware = $this->getMiddlewareForConfig($config);
 
-        // Nach Priority sortieren (absteigend)
+        // Sort by priority (descending)
         uasort(
             $middleware,
             static fn(MiddlewareInterface $a, MiddlewareInterface $b): int => $b->getPriority() <=> $a->getPriority(),
@@ -65,7 +65,7 @@ class HttpClientFactory implements HttpClientFactoryInterface
     }
 
     /**
-     * Baut den HTTP-Transport auf via php-http/discovery.
+     * Builds the HTTP transport via php-http/discovery.
      */
     private function buildTransport(ClientConfig $config): HttpTransportInterface
     {
@@ -110,7 +110,7 @@ class HttpClientFactory implements HttpClientFactoryInterface
     }
 
     /**
-     * Instanziiert die in der Config aktivierten Middleware-Objekte.
+     * Instantiates the middleware objects enabled in the config.
      *
      * @return array<string, MiddlewareInterface>
      */

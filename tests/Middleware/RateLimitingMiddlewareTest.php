@@ -11,7 +11,7 @@ use Four\Http\Transport\HttpTransportInterface;
 use Four\RateLimit\RateLimiterInterface;
 
 /**
- * Tests für RateLimitingMiddleware
+ * Tests for RateLimitingMiddleware
  */
 class RateLimitingMiddlewareTest extends TestCase
 {
@@ -32,7 +32,7 @@ class RateLimitingMiddlewareTest extends TestCase
     }
 
     /**
-     * Erstellt einen einfachen Mock-RateLimiter der immer erlaubt
+     * Creates a simple mock rate limiter that always allows
      */
     private function createMockRateLimiter(bool $allowed = true): RateLimiterInterface
     {
@@ -118,7 +118,7 @@ class RateLimitingMiddlewareTest extends TestCase
 
         $response = $wrappedTransport->request('GET', 'https://api.example.com/test');
 
-        // RateLimitingTransport wartet und macht den Request trotzdem — 429 kommt zurück
+        // RateLimitingTransport waits and still performs the request — a 429 is returned
         $this->assertSame(429, $response->getStatusCode());
     }
 
@@ -216,7 +216,7 @@ class RateLimitingMiddlewareTest extends TestCase
 
     public function testUpdateFromHeadersIsCalledAfterRequest(): void
     {
-        // RateLimiter der updateFromHeaders-Aufrufe trackt
+        // Rate limiter that tracks updateFromHeaders calls
         $rateLimiter = new class implements RateLimiterInterface {
             public int $updateCount = 0;
 

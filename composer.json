@@ -2,13 +2,16 @@
     "name": "four-bytes/four-http-client",
     "description": "Modern PHP 8.4+ HTTP client factory and middleware library for API integrations",
     "type": "library",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "authors": [
         {
-            "name": "4 Bytes",
-            "email": "info@4bytes.de"
+            "name": "Four Bytes"
         }
     ],
+    "support": {
+        "issues": "https://github.com/four-bytes/four-http-client/issues",
+        "source": "https://github.com/four-bytes/four-http-client"
+    },
     "keywords": [
         "http",
         "client",
@@ -67,7 +70,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "3.0-dev"
+            "dev-main": "4.x-dev"
         }
     }
 }

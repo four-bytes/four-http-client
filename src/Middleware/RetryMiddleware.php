@@ -172,7 +172,7 @@ class RetryHttpTransport implements HttpTransportInterface
             return true;
         }
 
-        // Retry on network/transport errors (RuntimeException mit passenden Messages)
+        // Retry on network/transport errors (RuntimeException with matching messages)
         $message = strtolower($exception->getMessage());
         if (
             $exception instanceof \RuntimeException

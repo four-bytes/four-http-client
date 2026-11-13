@@ -10,8 +10,8 @@ use Psr\Http\Client\ClientInterface;
 /**
  * PSR-18 Transport via php-http/discovery.
  *
- * Nutzt einen entdeckten PSR-18 Client und PSR-17 RequestFactory
- * um HttpTransportInterface-Requests auszuführen.
+ * Uses a discovered PSR-18 client and PSR-17 request factory
+ * to execute HttpTransportInterface requests.
  */
 class DiscoveryHttpTransport implements HttpTransportInterface
 {
@@ -28,11 +28,11 @@ class DiscoveryHttpTransport implements HttpTransportInterface
     {
         $mergedOptions = array_merge($this->defaultOptions, $options);
 
-        // Headers aus Options extrahieren
+        // Extract headers from options
         /** @var array<string, string|string[]> $headers */
         $headers = $mergedOptions['headers'] ?? [];
 
-        // Body aus Options
+        // Body from options
         $body = isset($mergedOptions['body']) && is_string($mergedOptions['body'])
             ? $mergedOptions['body']
             : null;

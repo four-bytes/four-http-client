@@ -61,7 +61,7 @@ class RateLimitingTransport implements HttpTransportInterface
 
         $response = $this->transport->request($method, $url, $options);
 
-        // Header-basiertes dynamisches Tracking
+        // Header-based dynamic tracking
         try {
             $headers = $response->getHeaders(false);
             $this->rateLimiter->updateFromHeaders($this->key, $headers);

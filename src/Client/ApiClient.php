@@ -18,10 +18,10 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
 /**
- * Abstrakte Basis-Klasse für API-Clients.
+ * Abstract base class for API clients.
  *
  * Infrastruktur-Layer: PSR-18, Auth-Injection, Error-Mapping.
- * Keine API-spezifische Logik.
+ * No API-specific logic.
  */
 abstract class ApiClient
 {
@@ -34,7 +34,7 @@ abstract class ApiClient
     ) {}
 
     /**
-     * GET-Request — gibt dekodierten JSON-Body zurück.
+     * GET request — returns the decoded JSON body.
      *
      * @param array<string, mixed> $query
      * @return array<string, mixed>
@@ -53,7 +53,7 @@ abstract class ApiClient
     }
 
     /**
-     * POST-Request — gibt dekodierten JSON-Body zurück.
+     * POST request — returns the decoded JSON body.
      *
      * @param array<string, mixed> $body
      * @return array<string, mixed>
@@ -69,7 +69,7 @@ abstract class ApiClient
     }
 
     /**
-     * PATCH-Request — gibt dekodierten JSON-Body zurück.
+     * PATCH request — returns the decoded JSON body.
      *
      * @param array<string, mixed> $body
      * @return array<string, mixed>
@@ -85,7 +85,7 @@ abstract class ApiClient
     }
 
     /**
-     * DELETE-Request — kein Rückgabewert.
+     * DELETE request — no return value.
      *
      * @throws HttpClientException
      */
@@ -101,18 +101,18 @@ abstract class ApiClient
     }
 
     /**
-     * Baut einen PSR-7-Request mit Auth-Headers und Default-Headers.
+     * Builds a PSR-7 request with auth headers and default headers.
      */
     protected function buildRequest(string $method, string $url, ?string $body = null): RequestInterface
     {
         $request = $this->requestFactory->createRequest($method, $url);
 
-        // Default-Headers aus Config
+        // Default headers from config
         foreach ($this->config->defaultHeaders as $name => $value) {
             $request = $request->withHeader($name, $value);
         }
 
-        // Auth-Headers injizieren
+        // Inject auth headers
         if ($this->auth !== null) {
             foreach ($this->auth->getAuthHeaders() as $name => $value) {
                 $request = $request->withHeader($name, $value);
@@ -131,14 +131,14 @@ abstract class ApiClient
     }
 
     /**
-     * Verarbeitet PSR-7-Response und wirft typisierte Exceptions bei Fehlern.
+     * Processes a PSR-7 response and throws typed exceptions on errors.
      *
      * @return array<string, mixed>
-     * @throws AuthenticationException bei 401
-     * @throws NotFoundException       bei 404
-     * @throws RateLimitException      bei 429
-     * @throws RetryableException      bei 5xx
-     * @throws HttpClientException     bei anderen 4xx
+     * @throws AuthenticationException on 401
+     * @throws NotFoundException       on 404
+     * @throws RateLimitException      on 429
+     * @throws RetryableException      on 5xx
+     * @throws HttpClientException     on other 4xx
      */
     protected function handleResponse(ResponseInterface $response, ?RequestInterface $request = null): array
     {
@@ -179,7 +179,7 @@ abstract class ApiClient
     }
 
     /**
-     * Wirft eine typisierte Exception basierend auf HTTP-Status.
+     * Throws a typed exception based on the HTTP status.
      *
      * @throws AuthenticationException
      * @throws NotFoundException
@@ -212,7 +212,7 @@ abstract class ApiClient
     }
 
     /**
-     * Normalisiert PSR-7-Header-Arrays für RateLimitException::fromHeaders().
+     * Normalizes PSR-7 header arrays for RateLimitException::fromHeaders().
      *
      * @param array<string, string|string[]> $headers
      * @return array<string, string>

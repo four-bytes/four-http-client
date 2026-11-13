@@ -16,7 +16,7 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Tests für HttpClientFactory (PSR-18 API)
+ * Tests for HttpClientFactory (PSR-18 API)
  */
 class HttpClientFactoryTest extends TestCase
 {
@@ -31,7 +31,7 @@ class HttpClientFactoryTest extends TestCase
     {
         parent::setUp();
 
-        // Registriere Test-PSR-18-Client als discovery-Kandidat
+        // Register the test PSR-18 client as a discovery candidate
         ClassDiscovery::prependStrategy(TestPsr18ClientStrategy::class);
 
         $this->factory = new HttpClientFactory($this->logger);
@@ -39,7 +39,7 @@ class HttpClientFactoryTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Discovery-Cache leeren damit andere Tests nicht beeinflusst werden
+        // Clear the discovery cache so that other tests are not affected
         ClassDiscovery::clearCache();
         parent::tearDown();
     }
@@ -124,7 +124,7 @@ class HttpClientFactoryTest extends TestCase
 }
 
 /**
- * Test-only Discovery-Strategy für einen minimalen PSR-18 Client.
+ * Test-only discovery strategy for a minimal PSR-18 client.
  */
 class TestPsr18ClientStrategy implements DiscoveryStrategy
 {
@@ -145,7 +145,7 @@ class TestPsr18ClientStrategy implements DiscoveryStrategy
 }
 
 /**
- * Minimaler PSR-18 Client für Tests — gibt immer 200 OK zurück.
+ * Minimal PSR-18 client for tests — always returns 200 OK.
  */
 class NullPsr18Client implements ClientInterface
 {

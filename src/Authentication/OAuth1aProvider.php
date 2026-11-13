@@ -139,7 +139,7 @@ class OAuth1aProvider implements AuthProviderInterface, RequestSignerInterface
 
     public function getExpiresAt(): ?\DateTimeInterface
     {
-        // OAuth 1.0a-Tokens haben kein Ablaufdatum
+        // OAuth 1.0a tokens have no expiry date
         return null;
     }
 

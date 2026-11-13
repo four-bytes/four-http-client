@@ -9,10 +9,10 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * PSR-18 Adapter über HttpTransportInterface
+ * PSR-18 adapter on top of HttpTransportInterface
  *
- * Konvertiert PSR-7 RequestInterface in Transport-Requests
- * und gibt PSR-7 ResponseInterface zurück.
+ * Converts a PSR-7 RequestInterface into transport requests
+ * and returns a PSR-7 ResponseInterface.
  */
 class TransportPsr18Adapter implements ClientInterface
 {
@@ -24,20 +24,20 @@ class TransportPsr18Adapter implements ClientInterface
     {
         $options = [];
 
-        // Headers übertragen
+        // Forward headers
         foreach ($request->getHeaders() as $name => $values) {
             $options['headers'][$name] = implode(', ', $values);
         }
 
-        // Body übertragen
+        // Forward body
         $body = (string) $request->getBody();
         if ($body !== '') {
             $options['body'] = $body;
         }
 
-        // Die vollständige URI (inkl. Query-String) wird direkt übergeben.
-        // Query-Parameter müssen NICHT separat in $options['query'] gesetzt werden,
-        // da sie bereits in der URI enthalten sind (z.B. ?page=1&limit=10).
+        // The full URI (including the query string) is passed directly.
+        // Query parameters must NOT be set separately in $options['query'],
+        // since they are already part of the URI (e.g. ?page=1&limit=10).
         $transportResponse = $this->transport->request(
             $request->getMethod(),
             (string) $request->getUri(),

@@ -7,7 +7,7 @@ namespace Four\Http\Transport;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Adaptiert eine PSR-7 ResponseInterface auf HttpResponseInterface.
+ * Adapts a PSR-7 ResponseInterface to HttpResponseInterface.
  */
 class Psr7HttpResponse implements HttpResponseInterface
 {

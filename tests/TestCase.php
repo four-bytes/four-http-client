@@ -167,7 +167,7 @@ abstract class TestCase extends BaseTestCase
      */
     protected function assertLogLevel(string $level): void
     {
-        // NullLogger speichert keine Records — Tests die Logging prüfen müssen eigenen Logger injecten
+        // NullLogger stores no records — tests that check logging must inject their own logger
         $this->addToAssertionCount(1);
     }
 
@@ -180,7 +180,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Get all log records for inspection (NullLogger hat keine Records)
+     * Get all log records for inspection (NullLogger has no records)
      *
      * @return array<mixed>
      */
@@ -190,11 +190,11 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Clear all log records (no-op bei NullLogger)
+     * Clear all log records (no-op with NullLogger)
      */
     protected function clearLogs(): void
     {
-        // NullLogger hat keine Records
+        // NullLogger has no records
     }
 
     /**

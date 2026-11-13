@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d63612e0d95c2f000d84f4d26e4a9935",
+    "content-hash": "21f7320e5488bb771c25571df23f327d",
     "packages": [
         {
             "name": "four-bytes/four-rate-limiting",

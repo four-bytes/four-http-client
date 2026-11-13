@@ -11,8 +11,8 @@ use Psr\Http\Message\StreamInterface;
 /**
  * Wraps HttpResponseInterface als PSR-7 ResponseInterface
  *
- * Konvertiert eine HttpResponseInterface-Antwort in eine vollständige
- * PSR-7-konforme Response mittels nyholm/psr7.
+ * Converts an HttpResponseInterface response into a complete
+ * PSR-7 compliant response using nyholm/psr7.
  */
 class TransportPsr7Response implements ResponseInterface
 {
