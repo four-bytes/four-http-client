@@ -1,6 +1,11 @@
 # Changelog — four-http-client
 
 
+## [5.0.1] — 2026-11-14
+
+### Fixed
+- `ApiClient` resolves relative URLs against `ClientConfig::baseUri` (it was ignored, so `httpGet('/users/42')` sent a relative URI); absolute URLs stay unchanged
+
 ## [5.0.0] — 2026-11-14
 
 ### Breaking Changes

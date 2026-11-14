@@ -102,10 +102,11 @@ abstract class ApiClient
 
     /**
      * Builds a PSR-7 request with auth headers and default headers.
+     * Relative URLs are resolved against the configured base URI.
      */
     protected function buildRequest(string $method, string $url, ?string $body = null): RequestInterface
     {
-        $request = $this->requestFactory->createRequest($method, $url);
+        $request = $this->requestFactory->createRequest($method, $this->resolveUrl($url));
 
         // Default headers from config
         foreach ($this->config->defaultHeaders as $name => $value) {
@@ -212,6 +213,19 @@ abstract class ApiClient
                 code: $statusCode,
             ),
         };
+    }
+
+    /**
+     * Absolute URLs (with scheme) stay unchanged; anything else is appended to the
+     * base URI, e.g. base `https://api.example.com/v1` + `/users` → `https://api.example.com/v1/users`.
+     */
+    protected function resolveUrl(string $url): string
+    {
+        if ($this->config->baseUri === '' || preg_match('#^[a-z][a-z0-9+.-]*://#i', $url) === 1) {
+            return $url;
+        }
+
+        return rtrim($this->config->baseUri, '/') . '/' . ltrim($url, '/');
     }
 
     /**
