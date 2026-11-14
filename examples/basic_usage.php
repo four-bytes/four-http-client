@@ -4,153 +4,75 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Four\Http\Authentication\ClientAuthMethod;
+use Four\Http\Authentication\OAuthProvider;
+use Four\Http\Authentication\TokenProvider;
+use Four\Http\Client\ApiClient;
 use Four\Http\Configuration\ClientConfig;
 use Four\Http\Configuration\RetryConfig;
-use Four\Http\Factory\MarketplaceHttpClientFactory;
-use Four\Http\Authentication\TokenProvider;
-use Psr\Http\Message\RequestFactoryInterface;
-use Psr\Log\NullLogger;
+use Four\Http\Factory\HttpClientFactory;
+use Http\Mock\Client as MockClient;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Response;
 
 /**
- * Basic usage example for four-http-client
+ * Basic usage of four-http-client — runs offline (a mock PSR-18 client stands in for the network).
  *
- * Demonstrates:
- * - Factory creation
- * - ClientConfig with Builder
- * - PSR-18 client creation
- * - Request execution via PSR-18
+ * 1. Build a config and a PSR-18 client with HttpClientFactory
+ * 2. Write a typed API client on top of ApiClient
+ * 3. Configure OAuth 2.0 with client_secret_basic
  */
 
-// Get PSR-17/PSR-18 factories via discovery
-$requestFactory = \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
-$streamFactory = \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
-$uriFactory = \Http\Discovery\Psr17FactoryDiscovery::findUriFactory();
+echo "Four HTTP Client — basic usage\n\n";
 
-echo "Four HTTP Client - Basic Usage\n";
-echo "=============================\n\n";
-
-// Create factory (optionally with logger and cache)
-$logger = new NullLogger();
-$factory = new MarketplaceHttpClientFactory($logger);
-
-// Example 1: Minimal client
-echo "1. Minimal client:\n";
-
-$config = ClientConfig::create('https://httpbin.org')
+// 1. Config + PSR-18 client with middleware stack (transport found via php-http/discovery)
+$config = ClientConfig::create('https://api.example.com/v1')
     ->withTimeout(10.0)
-    ->build();
-
-$client = $factory->create($config);
-
-echo "   Base URI: {$config->baseUri}\n";
-echo "   Timeout: {$config->timeout}s\n\n";
-
-// Example 2: Client with authentication
-echo "2. Client with bearer token:\n";
-
-$authProvider = TokenProvider::bearer('my-secret-token');
-
-$config = ClientConfig::create('https://api.example.com')
-    ->withAuthentication($authProvider)
-    ->withTimeout(30.0)
-    ->withLogging($logger)
-    ->build();
-
-$client = $factory->create($config);
-echo "   Authentication: {$authProvider->getType()}\n";
-echo "   Middleware: " . implode(', ', $config->middleware) . "\n\n";
-
-// Example 3: Simple auth helper
-echo "3. Simple auth (withAuth helper):\n";
-
-$config = ClientConfig::create('https://api.example.com')
-    ->withAuth('bearer', 'token-value')
-    ->withAuth('api_key', 'api-key-value', ['header' => 'X-API-Key'])
-    ->build();
-
-echo "   Headers include Authorization: " . (isset($config->defaultHeaders['Authorization']) ? 'yes' : 'no') . "\n\n";
-
-// Example 4: Retry configuration
-echo "4. Retry configuration:\n";
-
-$retryConfig = RetryConfig::default();
-echo "   Default: {$retryConfig->maxAttempts} attempts, initial delay {$retryConfig->initialDelay}s\n";
-
-$retryConfig = RetryConfig::conservative();
-echo "   Conservative: {$retryConfig->maxAttempts} attempts, initial delay {$retryConfig->initialDelay}s\n";
-
-$retryConfig = RetryConfig::aggressive();
-echo "   Aggressive: {$retryConfig->maxAttempts} attempts, initial delay {$retryConfig->initialDelay}s\n";
-
-$retryConfig = RetryConfig::forMarketplace('amazon');
-echo "   Amazon: {$retryConfig->maxAttempts} attempts, max delay {$retryConfig->maxDelay}s\n\n";
-
-// Example 5: Middleware via builder methods
-echo "5. Middleware via builder:\n";
-
-$config = ClientConfig::create('https://api.example.com')
-    ->withLogging($logger)
-    ->withRetries(RetryConfig::default())
-    ->build();
-
-echo "   Enabled middleware: " . implode(', ', $config->middleware) . "\n\n";
-
-// Example 6: Custom headers
-echo "6. Custom headers:\n";
-
-$config = ClientConfig::create('https://api.example.com')
-    ->withHeaders([
-        'Accept' => 'application/json',
-        'X-Custom-Header' => 'custom-value'
-    ])
     ->withUserAgent('MyApp/1.0')
-    ->withAccept('application/vnd.api+json')
-    ->withContentType('application/json')
+    ->withRetries(RetryConfig::conservative())
     ->build();
-
-echo "   Headers count: " . count($config->defaultHeaders) . "\n";
-foreach ($config->defaultHeaders as $name => $value) {
-    echo "   - {$name}: {$value}\n";
-}
-echo "\n";
-
-// Example 7: Marketplace presets
-echo "7. Marketplace presets:\n";
-
-$amazon = ClientConfig::create('https://sellingpartnerapi.amazon.com')->forAmazon()->build();
-echo "   Amazon: timeout={$amazon->timeout}s, middleware=" . implode(',', $amazon->middleware) . "\n";
-
-$ebay = ClientConfig::create('https://api.ebay.com')->forEbay()->build();
-echo "   eBay: timeout={$ebay->timeout}s, middleware=" . implode(',', $ebay->middleware) . "\n";
-
-$discogs = ClientConfig::create('https://api.discogs.com')->forDiscogs()->build();
-echo "   Discogs: timeout={$discogs->timeout}s, middleware=" . implode(',', $discogs->middleware) . "\n";
-
-$dev = ClientConfig::create('http://localhost:8080')->forDevelopment()->build();
-echo "   Development: timeout={$dev->timeout}s, middleware=" . implode(',', $dev->middleware) . "\n\n";
-
-// Example 8: Make actual request via PSR-18
-echo "8. Making GET request (PSR-18):\n";
 
 try {
-    // Create PSR-7 request
-    $uri = $uriFactory->createUri('https://httpbin.org/get?foo=bar');
-    $request = $requestFactory->createRequest('GET', $uri);
-    
-    // Send via PSR-18 client
-    $response = $client->sendRequest($request);
-    
-    echo "   Status: {$response->getStatusCode()}\n";
-    echo "   Content-Type: " . ($response->getHeaderLine('content-type') ?: 'none') . "\n";
-    
-    $data = json_decode($response->getBody()->getContents(), true);
-    if ($data && isset($data['args'])) {
-        echo "   Query args: " . json_encode($data['args']) . "\n";
-    }
-    
-} catch (Exception $e) {
-    echo "   Error: {$e->getMessage()}\n";
+    $psrClient = (new HttpClientFactory())->create($config);
+    echo "1. PSR-18 client: " . $psrClient::class . ", timeout {$config->timeout}s\n";
+} catch (\RuntimeException $e) {
+    // php-http/discovery found no PSR-18 client — install one, e.g. symfony/http-client or guzzlehttp/guzzle
+    echo "1. HttpClientFactory: no PSR-18 client installed ({$e->getMessage()})\n";
 }
 
-echo "\n" . str_repeat('=', 40) . "\n";
-echo "Basic usage examples completed.\n";
+// 2. Typed API client
+final class UserApi extends ApiClient
+{
+    /** @return array<string, mixed> */
+    public function user(int $id): array
+    {
+        return $this->httpGet('/users/' . $id); // → https://api.example.com/v1/users/{id}
+    }
+}
+
+$mock = new MockClient();
+$mock->addResponse(new Response(200, ['Content-Type' => 'application/json'], '{"id":42,"name":"Ada"}'));
+
+$psr17 = new Psr17Factory();
+$api = new UserApi($config, $mock, $psr17, $psr17, TokenProvider::bearer('demo-token'));
+$user = $api->user(42);
+$sent = $mock->getLastRequest();
+
+echo "2. UserApi::user(42) → {$user['name']} (request: {$sent->getMethod()} {$sent->getUri()}, "
+    . "Authorization: {$sent->getHeaderLine('Authorization')})\n";
+
+// 3. OAuth 2.0 — token endpoint and auth method come from the API you integrate
+$oauth = new OAuthProvider(
+    clientId: 'client-id',
+    clientSecret: 'client-secret',
+    tokenEndpoint: 'https://auth.example.com/oauth2/token',
+    httpClient: $mock,
+    requestFactory: $psr17,
+    streamFactory: $psr17,
+    refreshToken: 'refresh-token',
+    clientAuthMethod: ClientAuthMethod::ClientSecretBasic,
+);
+$mock->addResponse(new Response(200, [], '{"access_token":"at-123","expires_in":3600}'));
+$headers = $oauth->getAuthHeaders();
+
+echo "3. OAuth 2.0 (client_secret_basic): {$headers['Authorization']}\n";
