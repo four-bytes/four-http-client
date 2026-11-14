@@ -1,6 +1,6 @@
 {
     "name": "four-bytes/four-http-client",
-    "description": "Modern PHP 8.4+ HTTP client factory and middleware library for API integrations",
+    "description": "PHP 8.4+ HTTP client factory for API integrations — PSR-18, authentication, rate limiting, retries",
     "type": "library",
     "license": "Apache-2.0",
     "authors": [
@@ -14,12 +14,15 @@
     },
     "keywords": [
         "http",
-        "client",
+        "http-client",
         "middleware",
         "api",
+        "authentication",
+        "retry",
         "rate-limiting",
         "psr-18",
-        "psr-7"
+        "psr-7",
+        "php"
     ],
     "require": {
         "php": ">=8.4",
