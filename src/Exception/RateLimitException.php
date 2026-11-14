@@ -49,14 +49,28 @@ class RateLimitException extends HttpClientException
         return $this->requestLimit;
     }
 
+    /** Default header names for the remaining request count (first match wins). */
+    public const DEFAULT_REMAINING_HEADERS = ['x-ratelimit-remaining', 'ratelimit-remaining'];
+
+    /** Default header names for the request limit (first match wins). */
+    public const DEFAULT_LIMIT_HEADERS = ['x-ratelimit-limit', 'ratelimit-limit'];
+
     /**
      * Create exception from API response headers.
      *
+     * `Retry-After` and `X-RateLimit-Reset` are read always; the header names for
+     * remaining requests and the limit are configurable, so API clients for
+     * platforms with own header names pass them in.
+     *
      * @param array<string, array<string>|string> $headers
+     * @param list<string> $remainingHeaders header names for remaining requests, case-insensitive
+     * @param list<string> $limitHeaders     header names for the request limit, case-insensitive
      */
     public static function fromHeaders(
         array $headers,
-        ?string $operation = null
+        ?string $operation = null,
+        array $remainingHeaders = self::DEFAULT_REMAINING_HEADERS,
+        array $limitHeaders = self::DEFAULT_LIMIT_HEADERS,
     ): self {
         // Normalize header names to lowercase
         $normalizedHeaders = [];
@@ -65,8 +79,6 @@ class RateLimitException extends HttpClientException
         }
 
         $retryAfter = null;
-        $remaining = null;
-        $limit = null;
 
         // Extract retry-after from various header formats
         if (isset($normalizedHeaders['retry-after'])) {
@@ -76,23 +88,8 @@ class RateLimitException extends HttpClientException
             $retryAfter = max(0, $resetTime - time());
         }
 
-        // Extract remaining requests from various header formats
-        if (isset($normalizedHeaders['x-ratelimit-remaining'])) {
-            $remaining = (int) $normalizedHeaders['x-ratelimit-remaining'];
-        } elseif (isset($normalizedHeaders['x-amzn-ratelimit-remaining'])) {
-            $remaining = (int) $normalizedHeaders['x-amzn-ratelimit-remaining'];
-        } elseif (isset($normalizedHeaders['x-discogs-ratelimit-remaining'])) {
-            $remaining = (int) $normalizedHeaders['x-discogs-ratelimit-remaining'];
-        }
-
-        // Extract rate limit from various header formats
-        if (isset($normalizedHeaders['x-ratelimit-limit'])) {
-            $limit = (int) $normalizedHeaders['x-ratelimit-limit'];
-        } elseif (isset($normalizedHeaders['x-amzn-ratelimit-limit'])) {
-            $limit = (int) $normalizedHeaders['x-amzn-ratelimit-limit'];
-        } elseif (isset($normalizedHeaders['x-discogs-ratelimit'])) {
-            $limit = (int) $normalizedHeaders['x-discogs-ratelimit'];
-        }
+        $remaining = self::firstIntHeader($normalizedHeaders, $remainingHeaders);
+        $limit = self::firstIntHeader($normalizedHeaders, $limitHeaders);
 
         $message = sprintf(
             'Rate limit exceeded%s%s%s',
@@ -110,5 +107,21 @@ class RateLimitException extends HttpClientException
             $remaining,
             $limit
         );
+    }
+
+    /**
+     * @param array<string, string> $normalizedHeaders lowercase names
+     * @param list<string> $names
+     */
+    private static function firstIntHeader(array $normalizedHeaders, array $names): ?int
+    {
+        foreach ($names as $name) {
+            $key = strtolower($name);
+            if (isset($normalizedHeaders[$key])) {
+                return (int) $normalizedHeaders[$key];
+            }
+        }
+
+        return null;
     }
 }

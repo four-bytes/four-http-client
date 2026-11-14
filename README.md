@@ -261,6 +261,7 @@ $config = ClientConfig::create('https://api.example.com')
 OAuth 2.0 with automatic token refresh:
 
 ```php
+use Four\Http\Authentication\ClientAuthMethod;
 use Four\Http\Authentication\OAuthProvider;
 
 // OAuth 2.0 with client credentials or refresh token flow
@@ -273,8 +274,17 @@ $auth = new OAuthProvider(
     streamFactory: $streamFactory,
     refreshToken: 'your-refresh-token',   // optional
     scopes: ['read', 'write'],            // optional
+    clientAuthMethod: ClientAuthMethod::ClientSecretBasic, // optional, default ClientSecretPost
 );
 ```
+
+`ClientAuthMethod` (RFC 6749 §2.3.1) controls how the client authenticates at the token endpoint:
+`ClientSecretPost` sends `client_id`/`client_secret` in the form body, `ClientSecretBasic` sends them
+as an HTTP Basic header (required e.g. by eBay). A failed token request reports the endpoint's
+`error` / `error_description` in the exception message.
+
+This package ships no platform presets: token endpoints, auth methods and rate-limit header names
+of a specific API belong to the API client built on top of it.
 
 ### OAuth1aProvider
 

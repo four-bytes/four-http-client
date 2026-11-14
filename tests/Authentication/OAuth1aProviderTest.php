@@ -136,13 +136,14 @@ class OAuth1aProviderTest extends TestCase
         $this->assertNotSame($headers1['Authorization'], $headers2['Authorization']);
     }
     
-    public function testDiscogsFactor(): void
+    public function testHmacSha1Provider(): void
     {
-        $provider = OAuth1aProvider::discogs(
-            'discogs-consumer-key',
-            'discogs-consumer-secret',
-            'discogs-access-token',
-            'discogs-token-secret'
+        $provider = new OAuth1aProvider(
+            'consumer-key',
+            'consumer-secret',
+            'access-token',
+            'token-secret',
+            'HMAC-SHA1'
         );
         
         $this->assertSame('oauth_1a', $provider->getType());
@@ -204,7 +205,7 @@ class OAuth1aProviderTest extends TestCase
         $this->assertArrayHasKey('signature_valid', $testResult);
         
         $this->assertSame('GET', $testResult['test_method']);
-        $this->assertSame('https://api.discogs.com/oauth/identity', $testResult['test_url']);
+        $this->assertSame('https://api.example.com/oauth/identity', $testResult['test_url']);
         $this->assertNotNull($testResult['authorization_header']);
         $this->assertTrue($testResult['signature_valid']);
     }
