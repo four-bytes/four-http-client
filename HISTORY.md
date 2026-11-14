@@ -1,6 +1,9 @@
 # Changelog — four-http-client
 
 
+## [4.2.1] — 2026-11-14
+- docs: `LICENSE` is now the unmodified Apache-2.0 text; copyright notice moved to new `NOTICE` (rights holder Four Flames GmbH & Co. KG)
+
 ## [4.0.0] — 2026-02-25
 
 ### Breaking Changes
