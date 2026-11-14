@@ -1,5 +1,9 @@
 # Changelog — four-http-client
 
+## [Unreleased]
+
+### Fixed
+- `composer.json`: branch alias `dev-main` → `5.x-dev` (was still `4.x-dev`) (#16)
 
 ## [5.0.1] — 2026-11-14
 
