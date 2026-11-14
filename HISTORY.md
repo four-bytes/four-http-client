@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
-- `composer.json`: branch alias `dev-main` → `5.x-dev` (was still `4.x-dev`) (#16)
+- `composer.json`: branch alias removed — it pointed to `4.x-dev` while main is 5.x; Packagist now lists plain `dev-main` like the other four-bytes packages (#16, #18)
 
 ## [5.0.1] — 2026-11-14
 
