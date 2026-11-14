@@ -23,6 +23,7 @@ Thanks for your interest in improving `four-http-client`.
 - Every PHP file starts with `declare(strict_types=1);`.
 - Use PSR-4 autoloading under `Four\Http\`.
 - Keep the public API stable; treat breaking changes as a major version bump.
+- Releases are tagged `vX.Y.Z` (semantic versioning); older tags without the `v` prefix stay as they are.
 - Write code, comments, commit messages, and documentation in English.
 
 ## Running tests and static analysis
