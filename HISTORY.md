@@ -6,6 +6,10 @@
 ### Fixed
 - `ApiClient` resolves relative URLs against `ClientConfig::baseUri` (it was ignored, so `httpGet('/users/42')` sent a relative URI); absolute URLs stay unchanged
 
+### Documentation
+- README: pitch, badges, requirements, related packages, testing, contributing/security/changelog; license section corrected to Apache-2.0; `ApiClient` example uses existing classes
+- Examples rewritten for the current API and runnable offline
+
 ## [5.0.0] — 2026-11-14
 
 ### Breaking Changes

@@ -4,99 +4,36 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Four\Http\Configuration\ClientConfig;
 use Four\Http\Configuration\RetryConfig;
-use Four\Http\Factory\MarketplaceHttpClientFactory;
-use Four\Http\Authentication\TokenProvider;
-use Psr\Log\NullLogger;
+use Four\Http\Exception\RateLimitException;
 
 /**
- * Rate Limiting Demonstration
- *
- * Demonstrates rate limiting with four-rate-limiting integration.
- * Requires: four-bytes/four-rate-limiting package
+ * Retry policies and rate-limit headers — runs offline.
  */
 
-echo "Four HTTP Client - Rate Limiting Demo\n";
-echo "====================================\n\n";
+echo "Four HTTP Client — retries and rate limits\n\n";
 
-// Check if rate limiting package is available
-if (!class_exists('Four\RateLimit\RateLimiterFactory')) {
-    echo "NOTE: four-rate-limiting package not installed.\n";
-    echo "Install with: composer require four-bytes/four-rate-limiting\n\n";
+// 1. Retry presets and their backoff
+echo "1. Retry presets (delay per attempt):\n";
+foreach (['default' => RetryConfig::default(), 'conservative' => RetryConfig::conservative(), 'aggressive' => RetryConfig::aggressive()] as $name => $retry) {
+    $delays = array_map(static fn (int $n): string => sprintf('%.1fs', $retry->calculateDelay($n)), range(1, $retry->maxAttempts));
+    printf("   %-12s max %d attempts: %s\n", $name, $retry->maxAttempts, implode(', ', $delays));
 }
 
-$logger = new NullLogger();
-$factory = new MarketplaceHttpClientFactory($logger);
+// 2. Custom policy
+$custom = new RetryConfig(maxAttempts: 5, initialDelay: 0.5, multiplier: 3.0, maxDelay: 20.0);
+echo "\n2. Custom policy retries 503: " . ($custom->shouldRetryStatusCode(503) ? 'yes' : 'no')
+    . ", retries 400: " . ($custom->shouldRetryStatusCode(400) ? 'yes' : 'no') . "\n";
 
-// Example 1: Basic rate limiting configuration
-echo "1. Rate limiting configuration:\n";
+// 3. 429 responses: standard headers are read by default …
+$e = RateLimitException::fromHeaders(['Retry-After' => '30', 'X-RateLimit-Remaining' => '0', 'X-RateLimit-Limit' => '100']);
+echo "\n3. Standard headers: {$e->getMessage()}\n";
 
-$retryConfig = RetryConfig::forMarketplace('amazon');
-echo "   Amazon marketplace: maxAttempts={$retryConfig->maxAttempts}, maxDelay={$retryConfig->maxDelay}s\n";
-
-$retryConfig = RetryConfig::forMarketplace('ebay');
-echo "   eBay marketplace: maxAttempts={$retryConfig->maxAttempts}, maxDelay={$retryConfig->maxDelay}s\n";
-
-$retryConfig = RetryConfig::forMarketplace('discogs');
-echo "   Discogs marketplace: maxAttempts={$retryConfig->maxAttempts}, maxDelay={$retryConfig->maxDelay}s\n\n";
-
-// Example 2: With rate limiter (if available)
-echo "2. With RateLimiter integration:\n";
-
-if (class_exists('Four\RateLimit\RateLimiterFactory')) {
-    // Create rate limiter factory
-    $limiterFactory = new \Four\RateLimit\RateLimiterFactory();
-    
-    // Token bucket: 20 requests per second with burst
-    $limiter = $limiterFactory->create('api_requests', new \Four\RateLimit\Policy\TokenBucketPolicy(
-        capacity: 20,
-        refillRate: 20,
-        refillPeriod: 1.0
-    ));
-    
-    $config = ClientConfig::create('https://api.example.com')
-        ->withRateLimit($limiter)
-        ->withRetries(RetryConfig::default())
-        ->build();
-    
-    echo "   Rate limiter: TokenBucket (capacity=20, refill=20/s)\n";
-    echo "   Middleware: " . implode(', ', $config->middleware) . "\n";
-    
-} else {
-    // Fallback without actual rate limiter
-    $config = ClientConfig::create('https://api.example.com')
-        ->withRetries(RetryConfig::conservative())
-        ->build();
-    
-    echo "   Fallback: using retry config with conservative settings\n";
-    echo "   Retry: maxAttempts=2, initialDelay=2.0s\n";
-}
-
-echo "\n";
-
-// Example 3: Rate limit handling in error handling
-echo "3. Error handling for rate limits:\n";
-
-echo "   When 429 response received:\n";
-echo "   - RetryMiddleware respects Retry-After header\n";
-echo "   - Exponential backoff: 1s, 2s, 4s, ...\n";
-echo "   - Max delay: configured per marketplace\n\n";
-
-// Example 4: Marketplace-specific rate limits
-echo "4. Marketplace rate limit headers:\n";
-
-$marketplaces = [
-    'amazon' => ['header' => 'x-amzn-ratelimit-remaining', 'typical' => 'varies by operation'],
-    'ebay'   => ['header' => 'X-RateLimit-remaining', 'typical' => '5000/day'],
-    'discogs'=> ['header' => 'X-Discogs-Ratelimit-Remaining', 'typical' => '60/minute'],
-];
-
-foreach ($marketplaces as $name => $info) {
-    echo "   {$name}: {$info['header']} ({$info['typical']})\n";
-}
-
-echo "\n";
-
-echo str_repeat('=', 40) . "\n";
-echo "Rate limiting demo completed.\n";
+// … platform-specific header names are passed by the API client
+$e = RateLimitException::fromHeaders(
+    ['X-Platform-Remaining' => '0', 'X-Platform-Limit' => '60'],
+    null,
+    ['x-platform-remaining'],
+    ['x-platform-limit'],
+);
+echo "   Custom headers:   {$e->getMessage()}\n";

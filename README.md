@@ -1,28 +1,33 @@
 # Four HTTP Client
 
-A modern PSR-18 HTTP client library for PHP 8.4+ with middleware support. Built for API integrations with generic transport and authentication layers.
+PSR-18 HTTP client factory and base `ApiClient` for PHP 8.4+ — the shared foundation for building typed API clients with authentication, rate limiting, retries and error mapping.
+
+[![Packagist Version](https://img.shields.io/packagist/v/four-bytes/four-http-client)](https://packagist.org/packages/four-bytes/four-http-client)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/four-bytes/four-http-client/php)](https://packagist.org/packages/four-bytes/four-http-client)
+[![License](https://img.shields.io/packagist/l/four-bytes/four-http-client)](LICENSE)
+[![Downloads](https://img.shields.io/packagist/dt/four-bytes/four-http-client)](https://packagist.org/packages/four-bytes/four-http-client)
 
 ## Features
 
-- **PSR-18 Compliant** — Works with any PSR-18 compatible client
-- **Middleware Stack** — Logging, rate limiting, retry, authentication
-- **Authentication** — Bearer tokens, API keys, OAuth 2.0, OAuth 1.0a
-- **Retry Logic** — Exponential backoff with configurable policies
-- **Error Mapping** — 401 → AuthenticationException, 404 → NotFoundException, 429 → RateLimitException
+- **PSR-18 compliant** — works with any PSR-18 client, discovered via `php-http/discovery`
+- **Middleware stack** — logging, rate limiting, retry, authentication, request signing
+- **Authentication** — bearer tokens, API keys, OAuth 2.0 (`client_secret_post` / `client_secret_basic`), OAuth 1.0a
+- **Retry logic** — exponential backoff with configurable policies
+- **Error mapping** — 401 → `AuthenticationException`, 404 → `NotFoundException`, 429 → `RateLimitException`, 5xx → `RetryableException`
+- **No platform presets** — endpoints, auth methods and rate-limit headers of a specific API live in the API client built on top
+
+## Requirements
+
+- PHP 8.4+
+- A PSR-18 client and PSR-17 factories (e.g. `symfony/http-client` + `nyholm/psr7`, or `guzzlehttp/guzzle`), found automatically via `php-http/discovery`
+- `psr/http-client` ^1.0, `psr/http-factory` ^1.0, `psr/http-message` ^2.0, `psr/log` ^3.0
+- [`four-bytes/four-rate-limiting`](https://github.com/four-bytes/four-rate-limiting) ^1.3 (installed automatically)
 
 ## Installation
 
 ```bash
 composer require four-bytes/four-http-client
 ```
-
-Requires PHP 8.4+ and PSR packages:
-- `psr/http-client: ^1.0`
-- `psr/http-factory: ^1.0`
-- `psr/http-message: ^2.0`
-- `psr/log: ^3.0`
-
-Recommended: `php-http/discovery` for automatic transport discovery.
 
 ## Quick Start
 
@@ -60,13 +65,15 @@ Create a typed client for your specific API:
 ```php
 use Four\Http\Client\ApiClient;
 use Four\Http\Configuration\ClientConfig;
-use Four\Http\Factory\ApiClientFactory;
+use Four\Http\Factory\HttpClientFactory;
+use Four\Http\Authentication\TokenProvider;
+use Nyholm\Psr7\Factory\Psr17Factory;
 
 class MyApiClient extends ApiClient
 {
     public function getUser(int $id): array
     {
-        return $this->httpGet('/users/' . $id);
+        return $this->httpGet('/users/' . $id); // resolved against the base URI
     }
 
     public function createUser(array $data): array
@@ -86,12 +93,17 @@ class MyApiClient extends ApiClient
 }
 
 $config = ClientConfig::create('https://api.example.com')
-    ->withAuth('bearer', 'your-token')
     ->withTimeout(30.0)
     ->build();
 
-$factory = new ApiClientFactory();
-$client = $factory->create($config, MyApiClient::class);
+$psr17 = new Psr17Factory();
+$client = new MyApiClient(
+    $config,
+    (new HttpClientFactory())->create($config),
+    $psr17,                                  // RequestFactoryInterface
+    $psr17,                                  // StreamFactoryInterface
+    TokenProvider::bearer('your-token'),     // optional AuthProviderInterface
+);
 
 $user = $client->getUser(42);
 $newUser = $client->createUser(['name' => 'John']);
@@ -368,19 +380,28 @@ class MyApiClient extends ApiClient
 }
 ```
 
-## Requirements
+## Testing
 
-- **PHP 8.4+**
-- **psr/http-client: ^1.0**
-- **psr/http-factory: ^1.0**
-- **psr/http-message: ^2.0**
-- **psr/log: ^3.0**
-- **php-http/discovery: ^1.19**
+```bash
+composer install
+vendor/bin/phpunit
+vendor/bin/phpstan analyse
+```
 
-Optional:
-- **symfony/http-client** — Alternative transport
-- **guzzlehttp/guzzle** — Alternative transport
+PHPStan runs at the level configured in `phpstan.neon`; both must pass before every commit.
+
+## Related packages
+
+- [`four-bytes/four-rate-limiting`](https://github.com/four-bytes/four-rate-limiting) — rate limiting algorithms used by the rate-limiting middleware
+- [`four-bytes/four-lexware-api-client`](https://github.com/four-bytes/four-lexware-api-client) — Lexware Office API client built on this package
+- [`four-bytes/four-webdav-client`](https://github.com/four-bytes/four-webdav-client), [`four-bytes/four-discord-client`](https://github.com/four-bytes/four-discord-client), [`four-bytes/four-deezer-api-client`](https://github.com/four-bytes/four-deezer-api-client) — further clients on the same foundation
+
+## Contributing, security, changelog
+
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security: please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md)
+- Changelog: [HISTORY.md](HISTORY.md)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file.
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
