@@ -77,21 +77,7 @@ class TokenProvider implements AuthProviderInterface
         return new self($token, $headerName, '');
     }
 
-    /**
-     * Create provider for Amazon SP-API LWA token
-     */
-    public static function amazonLwa(string $lwaToken, ?\DateTimeInterface $expiresAt = null): self
-    {
-        return new self($lwaToken, 'x-amz-access-token', '', $expiresAt);
-    }
 
-    /**
-     * Create provider for Discogs token authentication
-     */
-    public static function discogs(string $token): self
-    {
-        return new self($token, 'Authorization', 'Discogs token=');
-    }
 
     /**
      * Update the token

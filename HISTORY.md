@@ -1,6 +1,20 @@
 # Changelog — four-http-client
 
 
+## [5.0.0] — 2026-11-14
+
+### Breaking Changes
+- Platform presets removed — they belong to the respective API clients: `OAuthProvider::amazon()`, `OAuthProvider::ebay()`, `OAuth1aProvider::discogs()`, `TokenProvider::amazonLwa()`, `TokenProvider::discogs()`
+- `RateLimitException::fromHeaders()` no longer reads Amazon (`x-amzn-ratelimit-*`) or Discogs (`x-discogs-ratelimit*`) headers by default; pass the header names, or override `ApiClient::rateLimitRemainingHeaders()` / `rateLimitLimitHeaders()`
+- Failed token refreshes throw `AuthenticationException` with code 401 and the message `Failed to refresh OAuth token: HTTP <status> — <error>: <error_description>`
+
+### Added
+- `ClientAuthMethod` (`ClientSecretPost`, `ClientSecretBasic`) for OAuth 2.0 token requests (RFC 6749 §2.3.1); new last constructor argument of `OAuthProvider`, default unchanged
+- Default rate-limit headers include the IETF `RateLimit-Remaining` / `RateLimit-Limit`
+
+### Removed
+- `examples/amazon_integration.php`
+
 ## [4.2.1] — 2026-11-14
 - docs: `LICENSE` is now the unmodified Apache-2.0 text; copyright notice moved to new `NOTICE` (rights holder Four Flames GmbH & Co. KG)
 

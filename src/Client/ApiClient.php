@@ -202,6 +202,9 @@ abstract class ApiClient
             ),
             $statusCode === 429 => throw RateLimitException::fromHeaders(
                 $this->normalizeHeaders($response->getHeaders()),
+                null,
+                $this->rateLimitRemainingHeaders(),
+                $this->rateLimitLimitHeaders(),
             ),
             $statusCode >= 500  => throw RetryableException::serverError($statusCode),
             default             => throw new HttpClientException(
@@ -209,6 +212,28 @@ abstract class ApiClient
                 code: $statusCode,
             ),
         };
+    }
+
+    /**
+     * Header names carrying the remaining request count on a 429 response.
+     * Override in an API client whose platform uses own header names.
+     *
+     * @return list<string>
+     */
+    protected function rateLimitRemainingHeaders(): array
+    {
+        return RateLimitException::DEFAULT_REMAINING_HEADERS;
+    }
+
+    /**
+     * Header names carrying the request limit on a 429 response.
+     * Override in an API client whose platform uses own header names.
+     *
+     * @return list<string>
+     */
+    protected function rateLimitLimitHeaders(): array
+    {
+        return RateLimitException::DEFAULT_LIMIT_HEADERS;
     }
 
     /**

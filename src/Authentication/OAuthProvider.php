@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Four\Http\Authentication;
 
 use Four\Http\Exception\AuthenticationException;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
 /**
- * Authentication provider for OAuth 2.0 and OAuth 1.0a flows
+ * Authentication provider for OAuth 2.0 token flows
  *
- * Handles OAuth token management, refresh, and header generation
- * for marketplace APIs that use OAuth authentication.
+ * Handles token management, refresh (refresh_token or client_credentials grant)
+ * and header generation. Platform-specific settings such as the token endpoint
+ * or the client authentication method belong to the API client using it.
  */
 class OAuthProvider implements AuthProviderInterface
 {
@@ -32,7 +34,8 @@ class OAuthProvider implements AuthProviderInterface
         private readonly StreamFactoryInterface $streamFactory,
         private readonly ?string $refreshToken = null,
         private readonly array $scopes = [],
-        private readonly string $oauthVersion = '2.0'
+        private readonly string $oauthVersion = '2.0',
+        private readonly ClientAuthMethod $clientAuthMethod = ClientAuthMethod::ClientSecretPost,
     ) {}
 
     public function getAuthHeaders(): array
@@ -99,12 +102,13 @@ class OAuthProvider implements AuthProviderInterface
     private function refreshOAuth2Token(): void
     {
         $grantType = $this->refreshToken ? 'refresh_token' : 'client_credentials';
-        
-        $params = [
-            'grant_type' => $grantType,
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret,
-        ];
+
+        $params = ['grant_type' => $grantType];
+
+        if ($this->clientAuthMethod === ClientAuthMethod::ClientSecretPost) {
+            $params['client_id'] = $this->clientId;
+            $params['client_secret'] = $this->clientSecret;
+        }
 
         if ($this->refreshToken) {
             $params['refresh_token'] = $this->refreshToken;
@@ -115,96 +119,76 @@ class OAuthProvider implements AuthProviderInterface
         }
 
         $body = $this->streamFactory->createStream(http_build_query($params));
-        
+
         $request = $this->requestFactory
             ->createRequest('POST', $this->tokenEndpoint)
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
+            ->withHeader('Accept', 'application/json')
             ->withBody($body);
+
+        if ($this->clientAuthMethod === ClientAuthMethod::ClientSecretBasic) {
+            // RFC 6749 §2.3.1: both values form-urlencoded before Base64
+            $credentials = urlencode($this->clientId) . ':' . urlencode($this->clientSecret);
+            $request = $request->withHeader('Authorization', 'Basic ' . base64_encode($credentials));
+        }
 
         try {
             $response = $this->httpClient->sendRequest($request);
-            
-            if ($response->getStatusCode() !== 200) {
-                throw AuthenticationException::invalidCredentials();
-            }
+        } catch (ClientExceptionInterface $e) {
+            throw new AuthenticationException('Failed to refresh OAuth token: ' . $e->getMessage(), 401, $e);
+        }
 
-            $data = json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
-            
-            if (!isset($data['access_token'])) {
-                throw AuthenticationException::invalidCredentials();
-            }
+        $content = (string) $response->getBody();
 
-            $this->accessToken = $data['access_token'];
-            
-            if (isset($data['expires_in'])) {
-                $expiresIn = (int) $data['expires_in'];
-                $this->expiresAt = (new \DateTimeImmutable())->add(new \DateInterval("PT{$expiresIn}S"));
-            }
+        if ($response->getStatusCode() !== 200) {
+            throw new AuthenticationException(
+                'Failed to refresh OAuth token: HTTP ' . $response->getStatusCode() . self::describeTokenError($content),
+                401,
+                null,
+                null,
+                'credentials'
+            );
+        }
 
+        try {
+            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            throw new AuthenticationException('Invalid JSON response from token endpoint', 0, $e);
-        } catch (\Exception $e) {
-            throw new AuthenticationException('Failed to refresh OAuth token: ' . $e->getMessage(), 0, $e);
+            throw new AuthenticationException('Invalid JSON response from token endpoint', 401, $e);
+        }
+
+        if (!is_array($data) || !isset($data['access_token']) || !is_string($data['access_token'])) {
+            throw new AuthenticationException('Token endpoint response contains no access_token', 401, null, null, 'credentials');
+        }
+
+        $this->accessToken = $data['access_token'];
+
+        if (isset($data['expires_in'])) {
+            $expiresIn = (int) $data['expires_in'];
+            $this->expiresAt = (new \DateTimeImmutable())->add(new \DateInterval("PT{$expiresIn}S"));
         }
     }
 
     /**
-     * Create provider for Amazon SP-API LWA OAuth
+     * " — error: error_description" from an RFC 6749 §5.2 error response, if present.
+     * Only these two fields are used, so nothing from the request ends up in the message.
      */
-    /**
-     * @param array<string> $scopes
-     */
-    public static function amazon(
-        string $clientId,
-        string $clientSecret,
-        ClientInterface $httpClient,
-        RequestFactoryInterface $requestFactory,
-        StreamFactoryInterface $streamFactory,
-        ?string $refreshToken = null,
-        array $scopes = []
-    ): self {
-        return new self(
-            $clientId,
-            $clientSecret,
-            'https://api.amazon.com/auth/o2/token',
-            $httpClient,
-            $requestFactory,
-            $streamFactory,
-            $refreshToken,
-            $scopes
-        );
-    }
+    private static function describeTokenError(string $content): string
+    {
+        try {
+            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return '';
+        }
 
-    /**
-     * Create provider for eBay OAuth
-     */
-    /**
-     * @param array<string> $scopes
-     */
-    public static function ebay(
-        string $clientId,
-        string $clientSecret,
-        ClientInterface $httpClient,
-        RequestFactoryInterface $requestFactory,
-        StreamFactoryInterface $streamFactory,
-        ?string $refreshToken = null,
-        array $scopes = [],
-        bool $sandbox = false
-    ): self {
-        $tokenEndpoint = $sandbox 
-            ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
-            : 'https://api.ebay.com/identity/v1/oauth2/token';
+        if (!is_array($data) || !isset($data['error']) || !is_string($data['error'])) {
+            return '';
+        }
 
-        return new self(
-            $clientId,
-            $clientSecret,
-            $tokenEndpoint,
-            $httpClient,
-            $requestFactory,
-            $streamFactory,
-            $refreshToken,
-            $scopes
-        );
+        $description = isset($data['error_description']) && is_string($data['error_description'])
+            ? ': ' . $data['error_description']
+            : '';
+
+        return ' — ' . $data['error'] . $description;
     }
 
     /**
@@ -216,6 +200,7 @@ class OAuthProvider implements AuthProviderInterface
     {
         return [
             'type' => $this->getType(),
+            'client_auth_method' => $this->clientAuthMethod->value,
             'has_access_token' => $this->accessToken !== null,
             'has_refresh_token' => $this->refreshToken !== null,
             'expires_at' => $this->expiresAt?->format('c'),

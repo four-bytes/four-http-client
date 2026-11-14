@@ -9,7 +9,7 @@ use Four\Http\Exception\AuthenticationException;
 /**
  * OAuth 1.0a Authentication Provider
  *
- * Implements OAuth 1.0a signature generation for APIs like Discogs
+ * Implements OAuth 1.0a signature generation (RFC 5849)
  * that require OAuth 1.0a authentication with signature verification.
  */
 class OAuth1aProvider implements AuthProviderInterface, RequestSignerInterface
@@ -191,23 +191,6 @@ class OAuth1aProvider implements AuthProviderInterface, RequestSignerInterface
         return md5(uniqid((string) rand(), true));
     }
 
-    /**
-     * Create OAuth 1.0a provider for Discogs
-     */
-    public static function discogs(
-        string $consumerKey,
-        string $consumerSecret,
-        string $accessToken,
-        string $tokenSecret
-    ): self {
-        return new self(
-            $consumerKey,
-            $consumerSecret,
-            $accessToken,
-            $tokenSecret,
-            'HMAC-SHA1'
-        );
-    }
 
     /**
      * Get token information for debugging (without exposing secrets)
@@ -239,7 +222,7 @@ class OAuth1aProvider implements AuthProviderInterface, RequestSignerInterface
     {
         // Test with known values to verify signature generation
         $testMethod = 'GET';
-        $testUrl = 'https://api.discogs.com/oauth/identity';
+        $testUrl = 'https://api.example.com/oauth/identity';
         $testParams = [];
 
         $headers = $this->getAuthHeadersForRequest($testMethod, $testUrl, $testParams);
