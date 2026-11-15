@@ -42,4 +42,23 @@ final class ApiClientTest extends TestCase
         self::assertNotFalse($request);
         self::assertSame($expected, (string) $request->getUri());
     }
+
+    public function testInvalidJsonThrowsWithoutWritingFiles(): void
+    {
+        $before = glob(sys_get_temp_dir() . '/four-http-jsonerr-*') ?: [];
+        $http = new MockClient();
+        $http->addResponse(new Response(200, ['Content-Type' => 'text/html'], '<html>Maintenance</html>'));
+
+        try {
+            $this->client('https://api.example.com', $http)->get('/users/42');
+            self::fail('HttpClientException expected');
+        } catch (\Four\Http\Exception\HttpClientException $e) {
+            self::assertStringContainsString('JSON decode failed', $e->getMessage());
+            self::assertStringContainsString('Content-Type: text/html', $e->getMessage());
+            self::assertStringNotContainsString('dump', $e->getMessage());
+            self::assertSame(200, $e->getCode());
+        }
+
+        self::assertSame($before, glob(sys_get_temp_dir() . '/four-http-jsonerr-*') ?: []);
+    }
 }

@@ -1,8 +1,9 @@
 # Changelog — four-http-client
 
-## [Unreleased]
+## [5.0.2] — 2026-11-15
 
 ### Fixed
+- `ApiClient` no longer writes the full response body and request URL to `/tmp/four-http-jsonerr-*.txt` when JSON decoding fails — response bodies can contain personal data. The exception keeps status, content type, length and a short preview (#20)
 - `composer.json`: branch alias removed — it pointed to `4.x-dev` while main is 5.x; Packagist now lists plain `dev-main` like the other four-bytes packages (#16, #18)
 
 ## [5.0.1] — 2026-11-14
