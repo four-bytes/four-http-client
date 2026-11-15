@@ -158,18 +158,8 @@ abstract class ApiClient
                 $len = strlen($body);
                 $preview = trim(preg_replace('/\s+/', ' ', substr($body, 0, 200)));
 
-                // Dump full body + request URL to disk for inspection
-                $dumpPath = null;
-                $rand = bin2hex(random_bytes(4));
-                $dumpPath = "/tmp/four-http-jsonerr-" . date('YmdHis') . "-{$rand}.txt";
-                $urlLine = $request !== null
-                    ? "URL: {$request->getMethod()} {$request->getUri()}"
-                    : "URL: (request not provided)";
-                $dumpContent = "{$urlLine}\nStatus: {$statusCode}\nContent-Type: {$ctype}\nBody-Length: {$len}\n---BODY---\n{$body}";
-                @file_put_contents($dumpPath, $dumpContent);
-
                 throw new HttpClientException(
-                    message: "JSON decode failed: {$e->getMessage()} (HTTP {$statusCode}, Content-Type: {$ctype}, body {$len} bytes): {$preview} [dump: {$dumpPath}]",
+                    message: "JSON decode failed: {$e->getMessage()} (HTTP {$statusCode}, Content-Type: {$ctype}, body {$len} bytes): {$preview}",
                     code: $statusCode,
                     previous: $e,
                 );
